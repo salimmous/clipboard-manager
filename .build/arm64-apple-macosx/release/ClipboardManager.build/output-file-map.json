@@ -1,0 +1,12 @@
+{
+  "": {
+    "dependencies": "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/ClipboardManager.build/ClipboardManager.d",
+    "object": "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/ClipboardManager.build/ClipboardManager.o",
+    "swift-dependencies": "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/ClipboardManager.build/master.swiftdeps"
+  },
+  "/Users/salim/Downloads/copy clipboard /Sources/main.swift": {
+    "object": "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/ClipboardManager.build/main.swift.o",
+    "swiftmodule": "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/ClipboardManager.build/main~partial.swiftmodule",
+    "swift-dependencies": "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/ClipboardManager.build/main.swiftdeps"
+  }
+}

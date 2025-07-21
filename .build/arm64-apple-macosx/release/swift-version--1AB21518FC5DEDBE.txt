@@ -1,0 +1,2 @@
+Apple Swift version 6.0 (swiftlang-6.0.0.6.8 clang-1600.0.23.1)
+Target: arm64-apple-darwin25.0.0

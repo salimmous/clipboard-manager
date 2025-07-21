@@ -77,7 +77,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 // MARK: - Custom Clipboard Icon
 struct CustomClipboardIcon: View {
     var body: some View {
-        if let customImage = loadSVGIcon() {
+        if let customImage = loadCustomIcon() {
             Image(nsImage: customImage)
                 .renderingMode(.template)
         } else {
@@ -86,28 +86,30 @@ struct CustomClipboardIcon: View {
         }
     }
     
-    private func loadSVGIcon() -> NSImage? {
-        // Get the path to the SVG file
-        let currentDirectory = FileManager.default.currentDirectoryPath
-        let svgPath = "\(currentDirectory)/svgviewer-output.svg"
+    private func loadCustomIcon() -> NSImage? {
+        // Try to load high-quality icons from different sources
+        let iconPaths = [
+            "/Users/salim/Downloads/copy clipboard /logos/Assets.xcassets/AppIcon.appiconset/32.png",
+            "/Users/salim/Downloads/copy clipboard /logos/Assets.xcassets/AppIcon.appiconset/16.png",
+            "/Users/salim/Downloads/copy clipboard /clipboard-logo.png"
+        ]
         
-        guard let svgData = NSData(contentsOfFile: svgPath) else {
-            print("Could not load SVG file at: \(svgPath)")
-            return createFallbackIcon()
-        }
-        
-        // Create NSImage from SVG data
-        if let image = NSImage(data: svgData as Data) {
-            // Resize to appropriate menu bar size
-            let targetSize = NSSize(width: 18, height: 18)
-            let resizedImage = NSImage(size: targetSize)
-            
-            resizedImage.lockFocus()
-            image.draw(in: NSRect(origin: .zero, size: targetSize))
-            resizedImage.unlockFocus()
-            
-            resizedImage.isTemplate = true
-            return resizedImage
+        for iconPath in iconPaths {
+            if let logoImage = NSImage(contentsOfFile: iconPath) {
+                // Resize to appropriate menu bar size
+                let targetSize = NSSize(width: 18, height: 18)
+                let resizedImage = NSImage(size: targetSize)
+                
+                resizedImage.lockFocus()
+                logoImage.draw(in: NSRect(origin: .zero, size: targetSize), 
+                             from: NSRect(origin: .zero, size: logoImage.size), 
+                             operation: .sourceOver, 
+                             fraction: 1.0)
+                resizedImage.unlockFocus()
+                
+                resizedImage.isTemplate = true
+                return resizedImage
+            }
         }
         
         return createFallbackIcon()
@@ -261,7 +263,7 @@ class AppUpdateManager: ObservableObject {
     @Published var isChecking = false
     
     private var updateTimer: Timer?
-    private let currentVersion = "1.0.0"
+    private let currentVersion = "1.0.3"
     private let updateCheckURL = "https://api.github.com/repos/salimmous/clipboard-manager/releases/latest"
     
     private init() {}
@@ -833,13 +835,54 @@ struct MenuBarView: View {
         }
     }
     
+    private func loadHeaderLogo() -> NSImage? {
+        let iconPaths = [
+            "/Users/salim/Downloads/copy clipboard /logos/Assets.xcassets/AppIcon.appiconset/32.png",
+            "/Users/salim/Downloads/copy clipboard /logos/Assets.xcassets/AppIcon.appiconset/24.png",
+            "/Users/salim/Downloads/copy clipboard /clipboard-logo.png"
+        ]
+        
+        for iconPath in iconPaths {
+            if let logoImage = NSImage(contentsOfFile: iconPath) {
+                return logoImage
+            }
+        }
+        return nil
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
-            // Clean Header
+            // Modern Header with gradient background
             HStack {
-                Text("Clipboard")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.primary)
+                HStack(spacing: 12) {
+                    // Custom logo in header
+                    if let logoImage = loadHeaderLogo() {
+                        Image(nsImage: logoImage)
+                            .resizable()
+                            .frame(width: 24, height: 24)
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    } else {
+                        Image(systemName: "clipboard.fill")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    }
+                    
+                    Text("Clipboard Manager")
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
+                }
                 
                 Spacer()
                 
@@ -847,41 +890,61 @@ struct MenuBarView: View {
                     clipboardManager.showingSettings = true
                 }) {
                     Image(systemName: "gearshape.fill")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.secondary)
+                        .background(
+                            Circle()
+                                .fill(Color.gray.opacity(0.1))
+                                .frame(width: 32, height: 32)
+                        )
                 }
                 .buttonStyle(.borderless)
+                .help("Settings")
             }
             .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-            .background(Color(NSColor.controlBackgroundColor))
+            .padding(.vertical, 18)
+            .background(
+                LinearGradient(
+                    colors: [Color(NSColor.controlBackgroundColor), Color(NSColor.controlBackgroundColor).opacity(0.8)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
             
-            // Search Bar
-            HStack(spacing: 10) {
+            // Modern Search Bar
+            HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 15, weight: .medium))
                     .foregroundColor(.secondary)
                 
-                TextField("Search clipboard...", text: $searchText)
+                TextField("Search clipboard items...", text: $searchText)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 14))
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.primary)
                 
                 if !searchText.isEmpty {
                     Button(action: {
-                        searchText = ""
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            searchText = ""
+                        }
                     }) {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 12))
+                            .font(.system(size: 14))
                             .foregroundColor(.secondary)
                     }
                     .buttonStyle(.plain)
+                    .help("Clear search")
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.vertical, 14)
             .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(0.1))
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.gray.opacity(0.08))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                    )
             )
             .padding(.horizontal, 20)
             .padding(.bottom, 16)
@@ -890,21 +953,57 @@ struct MenuBarView: View {
             
             // Content Area
             if filteredItems.isEmpty {
-                VStack(spacing: 16) {
-                    Image(systemName: "clipboard")
-                        .font(.system(size: 48, weight: .light))
-                        .foregroundColor(.secondary.opacity(0.6))
+                VStack(spacing: 20) {
+                    // Custom logo or clipboard icon
+                    if let logoImage = loadHeaderLogo() {
+                        Image(nsImage: logoImage)
+                            .resizable()
+                            .frame(width: 64, height: 64)
+                            .opacity(0.6)
+                    } else {
+                        Image(systemName: "clipboard")
+                            .font(.system(size: 56, weight: .light))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.blue.opacity(0.6), .purple.opacity(0.6)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    }
                     
-                    Text("No clipboard items")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.primary)
+                    VStack(spacing: 8) {
+                        Text("No clipboard items")
+                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                            .foregroundColor(.primary)
+                        
+                        Text("Copy text to see it here")
+                            .font(.system(size: 15))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
                     
-                    Text("Copy text to see it here")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
+                    // Helpful tip
+                    HStack(spacing: 8) {
+                        Image(systemName: "command")
+                            .font(.system(size: 12, weight: .medium))
+                        Text("+")
+                            .font(.system(size: 12, weight: .bold))
+                        Image(systemName: "x.square")
+                            .font(.system(size: 12, weight: .medium))
+                        Text("to open quickly")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.gray.opacity(0.1))
+                    )
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 60)
+                .padding(.vertical, 50)
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
@@ -1010,7 +1109,7 @@ struct MenuBarView: View {
                 
                 Spacer()
                 
-                Text("v1.0.0")
+                Text("v1.0.3")
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundColor(.secondary)
             }
@@ -1559,7 +1658,7 @@ struct AboutView: View {
             VStack(spacing: 32) {
                 // App Icon and Title
                 VStack(spacing: 16) {
-                    if let logoImage = NSImage(named: "logo.png") {
+                    if let logoImage = NSImage(named: "clipboard-logo.png") {
                         Image(nsImage: logoImage)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
@@ -1583,7 +1682,7 @@ struct AboutView: View {
                             .font(.system(size: 32, weight: .bold, design: .rounded))
                             .foregroundColor(.primary)
                         
-                        Text("Version 1.0.0")
+                        Text("Version 1.0.3")
                             .font(.system(size: 18, weight: .medium))
                             .foregroundColor(.secondary)
                     }

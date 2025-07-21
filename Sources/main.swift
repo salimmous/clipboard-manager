@@ -187,7 +187,7 @@ class AppSettings: ObservableObject {
     @Published var maxItems: Int = 100
     @Published var updateInterval: Double = 0.5 // في الثواني
     @Published var autoUpdateEnabled: Bool = true
-    @Published var checkUpdateInterval: Int = 24 // في الساعات
+    @Published var checkUpdateInterval: Double = 24.0 // بالساعات
     
     init() {
         loadSettings()
@@ -212,7 +212,7 @@ class AppSettings: ObservableObject {
         
         self.autoUpdateEnabled = UserDefaults.standard.bool(forKey: "AutoUpdateEnabled")
         
-        let savedCheckInterval = UserDefaults.standard.integer(forKey: "CheckUpdateInterval")
+        let savedCheckInterval = UserDefaults.standard.double(forKey: "CheckUpdateInterval")
         if savedCheckInterval > 0 {
             self.checkUpdateInterval = savedCheckInterval
         }
@@ -262,7 +262,7 @@ class AppUpdateManager: ObservableObject {
     
     private var updateTimer: Timer?
     private let currentVersion = "1.0.0"
-    private let updateCheckURL = "https://api.github.com/repos/your-username/clipboard-manager/releases/latest"
+    private let updateCheckURL = "https://api.github.com/repos/salimmous/clipboard-manager/releases/latest"
     
     private init() {}
     
@@ -1012,7 +1012,7 @@ struct MenuBarView: View {
                 
                 Text("v1.0.0")
                     .font(.system(size: 10, design: .monospaced))
-                    .foregroundColor(.tertiary)
+                    .foregroundColor(.secondary)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 8)

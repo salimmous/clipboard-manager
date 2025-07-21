@@ -1,17 +1,19 @@
 # Clipboard Manager for macOS
 
-A native macOS clipboard manager built with Swift and SwiftUI that runs as both a desktop app and menu bar utility.
+A native macOS clipboard manager built with Swift and SwiftUI that runs as both a desktop app and menu bar utility with automatic update capabilities.
 
 ## Features
 
 - 📋 **Native macOS App**: Built with Swift and SwiftUI for optimal performance
-- 🔍 **Real-time Monitoring**: Automatically captures clipboard changes
+- 🔍 **Real-time Monitoring**: Automatically captures clipboard changes with customizable intervals
 - 📱 **Menu Bar Integration**: Quick access from the menu bar
 - 💾 **Persistent Storage**: All data stored locally using UserDefaults
 - 🎨 **Native UI**: Beautiful macOS-native design with SwiftUI
 - ⌨️ **Quick Actions**: Click to copy, hover for actions
 - 🔄 **Smart Detection**: Automatically detects URLs, emails, and phone numbers
 - 🚀 **Lightweight**: Runs as background utility without dock icon
+- 🔄 **Automatic Updates**: Built-in update system that checks for new versions automatically
+- ⚙️ **Customizable Update Intervals**: Set how often the app checks for updates (1 hour to 1 week)
 
 ## Installation & Usage
 

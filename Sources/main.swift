@@ -335,12 +335,12 @@ class AppUpdateManager: ObservableObject {
     
     private func showUpdateNotification() {
         let notification = NSUserNotification()
-        notification.title = "تحديث جديد متاح"
-        notification.informativeText = "إصدار \(latestVersion) من مدير الحافظة متاح الآن"
+        notification.title = "New Update Available"
+        notification.informativeText = "Version \(latestVersion) of Clipboard Manager is now available"
         notification.soundName = NSUserNotificationDefaultSoundName
         notification.hasActionButton = true
-        notification.actionButtonTitle = "تحديث"
-        notification.otherButtonTitle = "لاحقاً"
+        notification.actionButtonTitle = "Update"
+        notification.otherButtonTitle = "Later"
         
         NSUserNotificationCenter.default.deliver(notification)
     }
@@ -368,18 +368,18 @@ class AppUpdateManager: ObservableObject {
             }
             try FileManager.default.moveItem(at: url, to: destinationURL)
             
-            // فتح مجلد التنزيلات لإظهار التطبيق الجديد
+            // Open Downloads folder to show the new app
             NSWorkspace.shared.selectFile(destinationURL.path, inFileViewerRootedAtPath: downloadsPath.path)
             
-            // إظهار رسالة للمستخدم
+            // Show message to user
             let alert = NSAlert()
-            alert.messageText = "تم تنزيل التحديث بنجاح"
-            alert.informativeText = "تم حفظ الإصدار الجديد في مجلد التنزيلات. يرجى إغلاق التطبيق الحالي وفتح الإصدار الجديد."
-            alert.addButton(withTitle: "موافق")
+            alert.messageText = "Update Downloaded Successfully"
+            alert.informativeText = "The new version has been saved to the Downloads folder. Please close the current app and open the new version."
+            alert.addButton(withTitle: "OK")
             alert.runModal()
             
         } catch {
-            print("خطأ في تثبيت التحديث: \(error)")
+            print("Error installing update: \(error)")
         }
     }
 }
@@ -444,11 +444,11 @@ class ClipboardManager: ObservableObject {
     }
     
     func restartMonitoring() {
-        // إيقاف المراقبة الحالية
+        // Stop current monitoring
         timer?.invalidate()
         timer = nil
         
-        // بدء المراقبة بالفترة الجديدة
+        // Start monitoring with new interval
         startMonitoring()
     }
     

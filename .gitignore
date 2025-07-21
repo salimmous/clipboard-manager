@@ -1,0 +1,29 @@
+# Build artifacts
+.build/
+*.xcodeproj
+*.xcworkspace
+.swiftpm/
+
+# macOS
+.DS_Store
+
+# App bundles (for development)
+*.app/
+
+# Temporary files
+*.tmp
+*.log
+
+# User-specific files
+xcuserdata/
+
+# Package manager
+Packages/
+.package.resolved
+
+# IDE files
+.vscode/
+.idea/
+
+# Vercel
+.vercel/

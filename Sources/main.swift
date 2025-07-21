@@ -190,6 +190,7 @@ class AppSettings: ObservableObject {
     @Published var updateInterval: Double = 0.5 // في الثواني
     @Published var autoUpdateEnabled: Bool = true
     @Published var checkUpdateInterval: Double = 24.0 // بالساعات
+    @Published var autoInstallUpdates: Bool = false // تثبيت التحديثات تلقائياً
     
     init() {
         loadSettings()
@@ -213,6 +214,7 @@ class AppSettings: ObservableObject {
         }
         
         self.autoUpdateEnabled = UserDefaults.standard.bool(forKey: "AutoUpdateEnabled")
+        self.autoInstallUpdates = UserDefaults.standard.bool(forKey: "AutoInstallUpdates")
         
         let savedCheckInterval = UserDefaults.standard.double(forKey: "CheckUpdateInterval")
         if savedCheckInterval > 0 {
@@ -225,6 +227,7 @@ class AppSettings: ObservableObject {
         UserDefaults.standard.set(maxItems, forKey: "MaxItems")
         UserDefaults.standard.set(updateInterval, forKey: "UpdateInterval")
         UserDefaults.standard.set(autoUpdateEnabled, forKey: "AutoUpdateEnabled")
+        UserDefaults.standard.set(autoInstallUpdates, forKey: "AutoInstallUpdates")
         UserDefaults.standard.set(checkUpdateInterval, forKey: "CheckUpdateInterval")
         applyAppearanceMode()
         
@@ -361,8 +364,122 @@ class AppUpdateManager: ObservableObject {
     }
     
     private func installUpdate(from url: URL) {
+        let settings = AppSettings()
+        
+        if settings.autoInstallUpdates {
+            // Auto install without asking
+            autoInstallAndRestart(from: url)
+        } else {
+            // Show installation options to user
+            let alert = NSAlert()
+            alert.messageText = "Install Update"
+            alert.informativeText = "How would you like to install the update?"
+            alert.addButton(withTitle: "Auto Install & Restart")
+            alert.addButton(withTitle: "Download to Downloads")
+            alert.addButton(withTitle: "Cancel")
+            
+            let response = alert.runModal()
+            
+            switch response {
+            case .alertFirstButtonReturn:
+                // Auto install and restart
+                autoInstallAndRestart(from: url)
+            case .alertSecondButtonReturn:
+                // Download to Downloads folder
+                downloadToDownloads(from: url)
+            default:
+                // Cancel - clean up
+                try? FileManager.default.removeItem(at: url)
+            }
+        }
+    }
+    
+    private func autoInstallAndRestart(from url: URL) {
+        // Get current app bundle path
+        let currentAppPath = Bundle.main.bundlePath
+        let applicationsURL = URL(fileURLWithPath: "/Applications")
+        let targetAppURL = applicationsURL.appendingPathComponent("ClipboardManager.app")
+        
+        // Create a temporary script for the installation
+        let tempDir = FileManager.default.temporaryDirectory
+        let scriptURL = tempDir.appendingPathComponent("install_update.sh")
+        
+        let script = """
+        #!/bin/bash
+        
+        # Wait for the current app to quit
+        sleep 2
+        
+        # Mount the DMG
+        hdiutil attach "\(url.path)" -quiet
+        
+        # Find the mounted volume
+        VOLUME_PATH="/Volumes/Install ClipboardManager"
+        
+        if [ -d "$VOLUME_PATH" ]; then
+            # Remove old app if exists
+            if [ -d "\(targetAppURL.path)" ]; then
+                rm -rf "\(targetAppURL.path)"
+            fi
+            
+            # Copy new app to Applications
+            cp -R "$VOLUME_PATH/ClipboardManager.app" "\(applicationsURL.path)/"
+            
+            # Unmount DMG
+            hdiutil detach "$VOLUME_PATH" -quiet
+            
+            # Remove downloaded DMG
+            rm -f "\(url.path)"
+            
+            # Launch new app
+            open "\(targetAppURL.path)"
+        fi
+        
+        # Clean up script
+        rm -f "\(scriptURL.path)"
+        """
+        
+        do {
+            try script.write(to: scriptURL, atomically: true, encoding: .utf8)
+            
+            // Make script executable
+            let attributes = [FileAttributeKey.posixPermissions: 0o755]
+            try FileManager.default.setAttributes(attributes, ofItemAtPath: scriptURL.path)
+            
+            // Show final confirmation
+            let confirmAlert = NSAlert()
+            confirmAlert.messageText = "Ready to Install"
+            confirmAlert.informativeText = "The app will now close and automatically install the update. The new version will launch automatically."
+            confirmAlert.addButton(withTitle: "Install Now")
+            confirmAlert.addButton(withTitle: "Cancel")
+            
+            if confirmAlert.runModal() == .alertFirstButtonReturn {
+                // Execute the installation script
+                let task = Process()
+                task.launchPath = "/bin/bash"
+                task.arguments = [scriptURL.path]
+                task.launch()
+                
+                // Quit the current app
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    NSApplication.shared.terminate(nil)
+                }
+            } else {
+                // User cancelled, clean up
+                try? FileManager.default.removeItem(at: scriptURL)
+                try? FileManager.default.removeItem(at: url)
+            }
+            
+        } catch {
+            print("Error creating installation script: \(error)")
+            // Fallback to Downloads folder
+            downloadToDownloads(from: url)
+        }
+    }
+    
+    private func downloadToDownloads(from url: URL) {
         let downloadsPath = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first!
-        let destinationURL = downloadsPath.appendingPathComponent("ClipboardManager-\(latestVersion).app")
+        let destinationURL = downloadsPath.appendingPathComponent("ClipboardManager-\(latestVersion)-Installer.dmg")
         
         do {
             if FileManager.default.fileExists(atPath: destinationURL.path) {
@@ -376,12 +493,12 @@ class AppUpdateManager: ObservableObject {
             // Show message to user
             let alert = NSAlert()
             alert.messageText = "Update Downloaded Successfully"
-            alert.informativeText = "The new version has been saved to the Downloads folder. Please close the current app and open the new version."
+            alert.informativeText = "The new version has been saved to the Downloads folder. Please install it manually when ready."
             alert.addButton(withTitle: "OK")
             alert.runModal()
             
         } catch {
-            print("Error installing update: \(error)")
+            print("Error downloading update: \(error)")
         }
     }
 }
@@ -1555,6 +1672,31 @@ struct GeneralSettingsView: View {
                             
                             if settings.autoUpdateEnabled {
                                 VStack(alignment: .leading, spacing: 12) {
+                                    // Auto Install Toggle
+                                    Toggle(isOn: $settings.autoInstallUpdates) {
+                                        HStack {
+                                            Image(systemName: "arrow.down.app.fill")
+                                                .font(.system(size: 16))
+                                                .foregroundColor(settings.autoInstallUpdates ? .green : .gray)
+                                            Text("Auto Install Updates")
+                                                .font(.system(size: 16, weight: .medium))
+                                                .foregroundColor(.primary)
+                                        }
+                                    }
+                                    .toggleStyle(SwitchToggleStyle(tint: .green))
+                                    .onChange(of: settings.autoInstallUpdates) { _ in
+                                        settings.saveSettings()
+                                    }
+                                    
+                                    Text("When enabled, updates will be installed automatically without asking. Otherwise, you'll be prompted to choose installation method.")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .padding(.leading, 24)
+                                    
+                                    Divider()
+                                        .background(Color.gray.opacity(0.3))
+                                        .padding(.vertical, 8)
+                                    
                                     HStack {
                                         Image(systemName: "clock.fill")
                                             .font(.system(size: 16))

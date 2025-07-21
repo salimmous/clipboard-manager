@@ -8,6 +8,11 @@ on:
       - 'Info.plist'
       - 'Package.swift'
 
+permissions:
+  contents: write
+  packages: write
+  actions: read
+
 jobs:
   auto-release:
     runs-on: macos-latest

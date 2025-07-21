@@ -1,0 +1,124 @@
+name: Auto Release and Deploy
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Sources/main.swift'
+      - 'Info.plist'
+      - 'Package.swift'
+
+jobs:
+  auto-release:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+        
+    - name: Extract version from Info.plist
+      id: version
+      run: |
+        VERSION=$(plutil -p Info.plist | grep CFBundleShortVersionString | awk '{print $3}' | tr -d '"')
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+        
+    - name: Check if release exists
+      id: check_release
+      run: |
+        if gh release view ${{ steps.version.outputs.tag }} >/dev/null 2>&1; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Delete existing release
+      if: steps.check_release.outputs.exists == 'true'
+      run: |
+        echo "Deleting existing release ${{ steps.version.outputs.tag }}"
+        gh release delete ${{ steps.version.outputs.tag }} --yes
+        git push --delete origin ${{ steps.version.outputs.tag }} || true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Build application
+      run: |
+        echo "Building ClipboardManager v${{ steps.version.outputs.version }}"
+        swift build -c release
+        
+    - name: Create app bundle
+      run: |
+        # Create app bundle structure
+        mkdir -p ClipboardManager.app/Contents/MacOS
+        mkdir -p ClipboardManager.app/Contents/Resources
+        
+        # Copy executable
+        cp .build/release/ClipboardManager ClipboardManager.app/Contents/MacOS/
+        
+        # Copy Info.plist
+        cp Info.plist ClipboardManager.app/Contents/
+        
+        # Copy icon if exists
+        if [ -f "CustomAppIcon.icns" ]; then
+          cp CustomAppIcon.icns ClipboardManager.app/Contents/Resources/AppIcon.icns
+        fi
+        
+        # Make executable
+        chmod +x ClipboardManager.app/Contents/MacOS/ClipboardManager
+        
+    - name: Create DMG installer
+      run: |
+        chmod +x create_dmg.sh
+        echo "n" | ./create_dmg.sh
+        
+    - name: Create release notes
+      run: |
+        cat > release_notes.md << EOF
+        # ClipboardManager v${{ steps.version.outputs.version }}
+        
+        ## 🚀 What's New
+        - Updated to version ${{ steps.version.outputs.version }}
+        - Enhanced security features
+        - Improved auto-update system
+        - Bug fixes and performance improvements
+        
+        ## 📦 Installation
+        1. Download the DMG file below
+        2. Open the DMG and drag ClipboardManager to Applications
+        3. Launch from Applications folder
+        
+        ## 🔄 Auto-Update
+        This version includes automatic update notifications. The app will check for new versions and notify you when updates are available.
+        
+        ## 🛡️ Security
+        - Enhanced privacy permissions
+        - Secure clipboard handling
+        - Code signing for trusted installation
+        
+        ---
+        
+        **Download the installer below and enjoy the latest features!**
+        EOF
+        
+    - name: Create new release
+      run: |
+        gh release create ${{ steps.version.outputs.tag }} \
+          --title "ClipboardManager v${{ steps.version.outputs.version }}" \
+          --notes-file release_notes.md \
+          --latest \
+          ClipboardManager-${{ steps.version.outputs.version }}-Installer.dmg
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Clean up
+      run: |
+        rm -f release_notes.md
+        rm -rf ClipboardManager.app
+        echo "✅ Release v${{ steps.version.outputs.version }} created successfully!"

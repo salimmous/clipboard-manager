@@ -263,7 +263,7 @@ class AppUpdateManager: ObservableObject {
     @Published var isChecking = false
     
     private var updateTimer: Timer?
-    private let currentVersion = "1.0.3"
+    private let currentVersion = "1.0.4"
     private let updateCheckURL = "https://api.github.com/repos/salimmous/clipboard-manager/releases/latest"
     
     private init() {}
@@ -1109,7 +1109,7 @@ struct MenuBarView: View {
                 
                 Spacer()
                 
-                Text("v1.0.3")
+                Text("v1.0.4")
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundColor(.secondary)
             }

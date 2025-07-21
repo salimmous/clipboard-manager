@@ -198,6 +198,8 @@ class AppSettings: ObservableObject {
     }
     
     private func loadSettings() {
+        // Load app settings from UserDefaults
+        // These settings persist across app updates since they're stored in the user's Library folder
         if let appearanceModeString = UserDefaults.standard.string(forKey: "AppearanceMode"),
            let appearanceMode = AppearanceMode(rawValue: appearanceModeString) {
             self.appearanceMode = appearanceMode
@@ -407,6 +409,12 @@ class AppUpdateManager: ObservableObject {
         let script = """
         #!/bin/bash
         
+        # ClipboardManager Auto-Update Installation Script
+        # This script preserves all user data during the update process:
+        # - Clipboard history (stored in UserDefaults)
+        # - App settings and preferences (stored in UserDefaults)
+        # - User data is NOT stored in the app bundle, so it remains intact
+        
         # Wait for the current app to quit
         sleep 2
         
@@ -417,7 +425,7 @@ class AppUpdateManager: ObservableObject {
         VOLUME_PATH="/Volumes/Install ClipboardManager"
         
         if [ -d "$VOLUME_PATH" ]; then
-            # Remove old app if exists
+            # Remove old app if exists (only the app bundle, user data is preserved)
             if [ -d "\(targetAppURL.path)" ]; then
                 rm -rf "\(targetAppURL.path)"
             fi
@@ -431,7 +439,7 @@ class AppUpdateManager: ObservableObject {
             # Remove downloaded DMG
             rm -f "\(url.path)"
             
-            # Launch new app
+            # Launch new app (user data will be automatically loaded)
             open "\(targetAppURL.path)"
         fi
         
@@ -628,6 +636,8 @@ class ClipboardManager: ObservableObject {
     }
     
     private func loadItems() {
+        // Load clipboard items from UserDefaults
+        // This data persists across app updates since it's stored in the user's Library folder
         if let data = UserDefaults.standard.data(forKey: "ClipboardItems"),
            let decodedItems = try? JSONDecoder().decode([ClipboardItem].self, from: data) {
             items = decodedItems

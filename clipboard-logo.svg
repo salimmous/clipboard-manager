@@ -1,0 +1,62 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="clipboardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f8f9fa;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="paperGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e9ecef;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#000000" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  
+  <!-- Background Circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#bgGradient)" filter="url(#shadow)"/>
+  
+  <!-- Main Clipboard -->
+  <g transform="translate(256, 256)">
+    <!-- Clipboard Back -->
+    <rect x="-80" y="-100" width="160" height="200" rx="12" ry="12" fill="url(#clipboardGradient)" stroke="#dee2e6" stroke-width="2"/>
+    
+    <!-- Clipboard Clip -->
+    <rect x="-30" y="-110" width="60" height="20" rx="10" ry="10" fill="#6c757d"/>
+    <rect x="-25" y="-105" width="50" height="10" rx="5" ry="5" fill="#495057"/>
+    
+    <!-- Paper Stack -->
+    <rect x="-60" y="-80" width="120" height="160" rx="8" ry="8" fill="url(#paperGradient)" stroke="#ced4da" stroke-width="1"/>
+    
+    <!-- Second Paper (slightly offset) -->
+    <rect x="-55" y="-75" width="110" height="150" rx="6" ry="6" fill="#ffffff" stroke="#dee2e6" stroke-width="1" opacity="0.8"/>
+    
+    <!-- Text Lines -->
+    <rect x="-45" y="-55" width="90" height="4" rx="2" fill="#667eea" opacity="0.7"/>
+    <rect x="-45" y="-40" width="70" height="4" rx="2" fill="#6c757d" opacity="0.5"/>
+    <rect x="-45" y="-25" width="85" height="4" rx="2" fill="#6c757d" opacity="0.5"/>
+    <rect x="-45" y="-10" width="60" height="4" rx="2" fill="#6c757d" opacity="0.5"/>
+    
+    <!-- Copy Icon -->
+    <g transform="translate(20, 20)">
+      <rect x="-15" y="-15" width="25" height="25" rx="3" fill="none" stroke="#667eea" stroke-width="3" stroke-linecap="round"/>
+      <rect x="-10" y="-10" width="25" height="25" rx="3" fill="none" stroke="#667eea" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    
+    <!-- Checkmark -->
+    <g transform="translate(-20, 35)">
+      <circle cx="0" cy="0" r="12" fill="#28a745"/>
+      <path d="M-6,0 L-2,4 L6,-4" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+  
+  <!-- Decorative Elements -->
+  <circle cx="120" cy="150" r="4" fill="#ffffff" opacity="0.3"/>
+  <circle cx="380" cy="180" r="6" fill="#ffffff" opacity="0.2"/>
+  <circle cx="400" cy="350" r="3" fill="#ffffff" opacity="0.4"/>
+  <circle cx="100" cy="380" r="5" fill="#ffffff" opacity="0.25"/>
+</svg>

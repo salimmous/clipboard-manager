@@ -1,88 +1,108 @@
 #!/bin/bash
 
-# مثبت مدير الحافظة التلقائي
-# Clipboard Manager Auto Installer
+# ClipboardManager Automatic Installer
+# Compatible with macOS 11.0 (Big Sur) and later
 
-echo "🚀 بدء تثبيت مدير الحافظة..."
-echo "🚀 Starting Clipboard Manager installation..."
+set -e
+echo "🚀 Starting ClipboardManager installation..."
+echo
 
-# التحقق من وجود curl
+# Check macOS version compatibility
+echo "🔍 Checking macOS compatibility..."
+MAJOR_VERSION=$(sw_vers -productVersion | cut -d '.' -f 1)
+MINOR_VERSION=$(sw_vers -productVersion | cut -d '.' -f 2)
+
+if [[ $MAJOR_VERSION -lt 13 ]]; then
+    echo "❌ This app requires macOS 13.0 (Ventura) or later"
+    echo "📱 Your macOS version: $(sw_vers -productVersion)"
+    echo "💡 Please update your macOS to install ClipboardManager"
+    exit 1
+fi
+
+echo "✅ macOS $(sw_vers -productVersion) is compatible!"
+echo
+
+# Check if curl is available
 if ! command -v curl &> /dev/null; then
-    echo "❌ curl غير مثبت. يرجى تثبيت curl أولاً"
     echo "❌ curl is not installed. Please install curl first"
     exit 1
 fi
 
-# إنشاء مجلد مؤقت
+# Create temporary directory
 TEMP_DIR=$(mktemp -d)
-echo "📁 إنشاء مجلد مؤقت: $TEMP_DIR"
+echo "📁 Creating temporary directory: $TEMP_DIR"
 
-# تحميل أحدث إصدار
-echo "⬇️ تحميل أحدث إصدار..."
-cd "$TEMP_DIR"
-curl -L -o ClipboardManager.zip "https://github.com/salimmous/clipboard-manager/releases/download/v1.0.1/ClipboardManager-v1.0.1.zip"
+# Download latest release
+echo "⬇️ Downloading latest release..."
+DOWNLOAD_URL="https://github.com/salimmous/clipboard-manager/releases/download/v1.0.4/ClipboardManager-1.0.4-Installer.dmg"
 
-if [ $? -ne 0 ]; then
-    echo "❌ فشل في تحميل التطبيق"
-    echo "❌ Failed to download the app"
+if ! curl -L "$DOWNLOAD_URL" -o "$TEMP_DIR/ClipboardManager.dmg"; then
+    echo "❌ Failed to download the application"
+    rm -rf "$TEMP_DIR"
     exit 1
 fi
 
-# فك الضغط
-echo "📦 فك ضغط الملف..."
-unzip -q ClipboardManager.zip
+# Mount the DMG
+echo "📦 Mounting DMG file..."
 
-if [ $? -ne 0 ]; then
-    echo "❌ فشل في فك ضغط الملف"
-    echo "❌ Failed to extract the file"
+if ! hdiutil attach "$TEMP_DIR/ClipboardManager.dmg" -mountpoint "$TEMP_DIR/ClipboardManager"; then
+    echo "❌ Failed to mount DMG file"
+    rm -rf "$TEMP_DIR"
     exit 1
 fi
 
-# التحقق من وجود مجلد Applications
+# Check if Applications folder exists
 if [ ! -d "/Applications" ]; then
-    echo "❌ مجلد Applications غير موجود"
     echo "❌ Applications folder not found"
+    hdiutil detach "$TEMP_DIR/ClipboardManager"
+    rm -rf "$TEMP_DIR"
     exit 1
 fi
 
-# نسخ التطبيق إلى مجلد Applications
-echo "📱 تثبيت التطبيق في مجلد Applications..."
-cp -R ClipboardManager.app /Applications/
+# Copy app to Applications folder
+echo "📱 Installing app to Applications folder..."
 
-if [ $? -ne 0 ]; then
-    echo "❌ فشل في نسخ التطبيق إلى مجلد Applications"
+if ! cp -R "$TEMP_DIR/ClipboardManager/ClipboardManager.app" "/Applications/"; then
     echo "❌ Failed to copy app to Applications folder"
-    echo "💡 جرب تشغيل الأمر بصلاحيات المدير: sudo ./install.sh"
     echo "💡 Try running with admin privileges: sudo ./install.sh"
+    hdiutil detach "$TEMP_DIR/ClipboardManager"
+    rm -rf "$TEMP_DIR"
     exit 1
 fi
 
-# تنظيف الملفات المؤقتة
-echo "🧹 تنظيف الملفات المؤقتة..."
+# Clean up temporary files
+echo "🧹 Cleaning up temporary files..."
+hdiutil detach "$TEMP_DIR/ClipboardManager"
 rm -rf "$TEMP_DIR"
 
-# رسالة النجاح
-echo "✅ تم تثبيت مدير الحافظة بنجاح!"
-echo "✅ Clipboard Manager installed successfully!"
-echo ""
-echo "🎉 يمكنك الآن تشغيل التطبيق من:"
-echo "🎉 You can now run the app from:"
-echo "   - مجلد التطبيقات (Applications folder)"
-echo "   - أو عبر Terminal: open /Applications/ClipboardManager.app"
-echo ""
-echo "📋 الميزات المتاحة:"
+# Set proper permissions
+echo "🔐 Setting proper permissions..."
+chmod +x "/Applications/ClipboardManager.app/Contents/MacOS/ClipboardManager"
+
+# Success message
+echo "✅ ClipboardManager installed successfully!"
+echo "🖥️  Compatible with macOS $(sw_vers -productVersion)"
+echo
+echo "🎉 You can now launch the app from:"
+echo "   - Spotlight (press Cmd+Space and type ClipboardManager)"
+echo "   - Applications folder"
+echo "   - Or via Terminal: open /Applications/ClipboardManager.app"
+echo
 echo "📋 Available features:"
-echo "   ✓ حفظ تلقائي للحافظة"
-echo "   ✓ تحديثات تلقائية"
-echo "   ✓ بحث سريع"
-echo "   ✓ اختصارات لوحة المفاتيح"
-echo ""
-echo "🚀 هل تريد تشغيل التطبيق الآن؟ (y/n)"
+echo "   ⌘+X - Open/close clipboard window"
+echo "   ✓ Automatic clipboard saving"
+echo "   ✓ Automatic updates"
+echo "   ✓ Quick search"
+echo "   ✓ Keyboard shortcuts"
+echo "   ✓ Global macOS compatibility (11.0+)"
+echo
+echo "🚀 Would you like to launch the app now? (y/n)"
 read -r response
-if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-    echo "🎯 تشغيل التطبيق..."
+if [[ "$response" =~ ^[Yy]$ ]]; then
+    echo "🎯 Launching the app..."
     open /Applications/ClipboardManager.app
+    echo "📋 ClipboardManager is now running in your menu bar!"
 fi
 
-echo "🎊 شكراً لاستخدام مدير الحافظة!"
-echo "🎊 Thank you for using Clipboard Manager!"
+echo "🎊 Thank you for using ClipboardManager!"
+echo "🌍 Works globally on all supported macOS versions!"

@@ -1,139 +1,106 @@
-# إعداد التحديثات التلقائية للتطبيق
+# Auto-Update Setup
 
-## نظرة عامة
-يحتوي التطبيق على نظام تحديث تلقائي يتحقق من الإصدارات الجديدة من GitHub Releases ويقوم بتنزيلها وتثبيتها تلقائياً.
+This guide explains how to set up the automatic update system for the ClipboardManager application.
 
-## إعداد GitHub Releases
+## Requirements
 
-### 1. إنشاء Repository على GitHub
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-git remote add origin https://github.com/YOUR_USERNAME/clipboard-manager.git
-git push -u origin main
-```
+- macOS 13.0 or later
+- Internet connection
+- Administrator privileges (for installation)
 
-### 2. تحديث رابط Repository في الكود
-في ملف `main.swift`، قم بتحديث الرابط في `AppUpdateManager`:
+## How Auto-Updates Work
+
+1. **Periodic Check**: The app checks for updates every 24 hours
+2. **Version Comparison**: Compares current version with the latest release on GitHub
+3. **Automatic Download**: If an update is available, it downloads automatically
+4. **Safe Installation**: Updates are installed while preserving user data
+
+## Available Settings
+
+### In `main.swift` file:
+
 ```swift
-private let releasesURL = "https://api.github.com/repos/YOUR_USERNAME/clipboard-manager/releases/latest"
+// Update check interval (in seconds)
+private let updateCheckInterval: TimeInterval = 24 * 60 * 60 // 24 hours
+
+// Enable/disable automatic updates
+@Published var autoInstallUpdates: Bool = true
 ```
 
-### 3. إنشاء Release جديد
-1. اذهب إلى صفحة repository على GitHub
-2. انقر على "Releases" في الشريط الجانبي
-3. انقر على "Create a new release"
-4. أدخل tag version (مثل: v1.0.1)
-5. أدخل عنوان الإصدار ووصف التحديثات
-6. ارفع ملف `.app` المضغوط كـ Asset
-7. انقر على "Publish release"
+### Customizing Check Interval:
 
-## بناء التطبيق للتوزيع
-
-### 1. بناء التطبيق
-```bash
-# بناء التطبيق
-swift build -c release
-
-# أو استخدام Xcode
-# Product > Archive > Distribute App
-```
-
-### 2. ضغط التطبيق
-```bash
-# ضغط التطبيق
-zip -r ClipboardManager-v1.0.1.zip ClipboardManager.app
-```
-
-### 3. رفع الإصدار
-- ارفع الملف المضغوط إلى GitHub Release
-- تأكد من أن اسم الملف يحتوي على رقم الإصدار
-
-## كيفية عمل التحديث التلقائي
-
-### 1. فحص التحديثات
-- يتم فحص التحديثات كل 24 ساعة افتراضياً
-- يمكن للمستخدم تغيير هذه المدة من الإعدادات
-- يمكن فحص التحديثات يدوياً من قائمة التطبيق
-
-### 2. تنزيل التحديث
-- عند توفر تحديث، يظهر إشعار للمستخدم
-- يمكن تنزيل التحديث بنقرة واحدة
-- يتم حفظ التحديث في مجلد Downloads
-
-### 3. تثبيت التحديث
-- يتم فتح مجلد Downloads تلقائياً
-- يطلب من المستخدم سحب التطبيق الجديد إلى مجلد Applications
-- يتم إغلاق التطبيق القديم تلقائياً
-
-## إعدادات المستخدم
-
-### في قائمة الإعدادات:
-- **تفعيل التحديثات التلقائية**: تشغيل/إيقاف فحص التحديثات
-- **فترة فحص التحديثات**: من ساعة واحدة إلى أسبوع
-
-### في قائمة التطبيق:
-- **فحص التحديثات**: فحص يدوي للتحديثات
-- **تنزيل التحديث**: عند توفر تحديث جديد
-
-## أمان التحديثات
-
-### التحقق من الإصدار
-- يتم مقارنة أرقام الإصدارات
-- يتم التحقق من صحة الرابط
-- يتم التحقق من حجم الملف
-
-### الأذونات
-- لا يتطلب التطبيق أذونات إدارية
-- يتم التنزيل في مجلد المستخدم
-- المستخدم يتحكم في عملية التثبيت
-
-## استكشاف الأخطاء
-
-### مشاكل شائعة:
-1. **عدم ظهور التحديثات**: تحقق من رابط GitHub Repository
-2. **فشل التنزيل**: تحقق من الاتصال بالإنترنت
-3. **عدم عمل التثبيت**: تحقق من أذونات مجلد Applications
-
-### سجلات الأخطاء:
 ```swift
-// يمكن إضافة logging للتطوير
-print("Update check failed: \(error.localizedDescription)")
+// Check every 12 hours
+private let updateCheckInterval: TimeInterval = 12 * 60 * 60
+
+// Check every 6 hours
+private let updateCheckInterval: TimeInterval = 6 * 60 * 60
+
+// Check every hour (for testing)
+private let updateCheckInterval: TimeInterval = 60 * 60
 ```
 
-## نصائح للمطورين
+## Security Mechanisms
 
-1. **اختبار التحديثات**: اختبر النظام مع إصدارات تجريبية
-2. **أرقام الإصدارات**: استخدم Semantic Versioning (v1.0.0)
-3. **وصف التحديثات**: اكتب وصف واضح للتحديثات الجديدة
-4. **النسخ الاحتياطية**: احتفظ بنسخ من الإصدارات السابقة
-5. **الاختبار**: اختبر التطبيق على أنظمة مختلفة قبل النشر
+1. **Signature Verification**: Downloaded files are verified for authenticity
+2. **Backup Creation**: A backup is created before updating
+3. **Automatic Recovery**: If update fails, the previous version is restored
 
-## مثال على سير العمل
+## Troubleshooting
 
-```bash
-# 1. تطوير ميزة جديدة
-git checkout -b feature/new-feature
-# ... تطوير الكود
-git commit -m "Add new feature"
-git push origin feature/new-feature
+### Issue: Updates not working
 
-# 2. دمج في main
-git checkout main
-git merge feature/new-feature
-git push origin main
+**Solutions:**
+1. Check internet connection
+2. Verify app permissions
+3. Restart the application
 
-# 3. بناء الإصدار الجديد
-swift build -c release
+### Issue: Failed to download update
 
-# 4. إنشاء Release على GitHub
-# - Tag: v1.0.2
-# - Title: "إضافة ميزة جديدة"
-# - Description: وصف التحديثات
-# - Assets: ClipboardManager-v1.0.2.zip
+**Solutions:**
+1. Check available disk space
+2. Ensure firewall isn't blocking the app
+3. Try manual update
 
-# 5. المستخدمون سيحصلون على إشعار التحديث تلقائياً
+### Issue: Failed to install update
+
+**Solutions:**
+1. Close all instances of the app
+2. Run app with administrator privileges
+3. Download update manually from GitHub
+
+## Manual Update
+
+If automatic updates fail, you can update manually:
+
+1. Go to [Releases page](https://github.com/salimmous/clipboard-manager/releases)
+2. Download the latest release
+3. Close the current app
+4. Install the new version
+
+## Disabling Auto-Updates
+
+To disable automatic updates:
+
+```swift
+// In main.swift
+@Published var autoInstallUpdates: Bool = false
 ```
 
-هذا النظام يضمن حصول المستخدمين على أحدث الإصدارات بسهولة وأمان.
+Or through the app interface:
+1. Open app settings
+2. Turn off "Automatic Updates"
+
+## Privacy and Security
+
+- **No personal data collection** during update process
+- **GitHub-only verification** for release information
+- **HTTPS encryption** for all downloads
+- **No system information sent** to external servers
+
+## Support
+
+For assistance:
+- [Open an issue](https://github.com/salimmous/clipboard-manager/issues)
+- [Review documentation](https://github.com/salimmous/clipboard-manager/wiki)
+- [Contact developer](mailto:support@clipboardmanager.com)

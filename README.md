@@ -1,6 +1,46 @@
 # Clipboard Manager for macOS
 
-A native macOS clipboard manager built with Swift and SwiftUI that runs as both a desktop app and menu bar utility with automatic update capabilities.
+**ClipboardManager** is a powerful, native macOS clipboard management utility that transforms how you work with copied content. Built with Swift and SwiftUI, this lightweight application runs seamlessly in your menu bar, providing instant access to your clipboard history.
+
+## 🎯 **What It Does**
+ClipboardManager automatically captures and stores everything you copy, creating a searchable history that persists across app sessions. With a simple **⌘+X** keyboard shortcut, you can instantly access your clipboard history from anywhere on your Mac.
+
+## 🎮 **How to Control the App**
+
+### **Basic Controls**
+- **⌘+X** - Toggle clipboard window (show/hide)
+- **Click Menu Bar Icon** - Access quick menu with recent items
+- **Click "Show All"** - Open full clipboard interface
+- **Search Box** - Type to filter clipboard items
+- **Click Item** - Copy selected item back to clipboard
+- **Hover over Item** - Show action buttons
+
+### **Menu Bar Controls**
+- **Left Click** - Show recent clipboard items menu
+- **"Show All" Button** - Open main clipboard window
+- **"Settings" Button** - Access app preferences
+- **"Quit" Button** - Exit the application
+
+### **Main Window Controls**
+- **Search Field** - Filter items by typing
+- **Item List** - Scroll through clipboard history
+- **Clear All** - Remove all clipboard items
+- **Settings Panel** - Configure app behavior
+
+### **Settings & Preferences**
+- **Appearance Mode** - Choose System, Light, or Dark theme
+- **Max Items** - Set maximum number of items to store (default: 100)
+- **Update Interval** - Adjust clipboard monitoring frequency
+- **Auto-Update** - Enable/disable automatic app updates
+- **Update Check Interval** - Set how often to check for updates (1 hour to 1 week)
+- **Auto-Install Updates** - Automatically install new versions
+
+### **Keyboard Shortcuts**
+- **⌘+X** - Global hotkey to show/hide clipboard window
+- **↑/↓ Arrow Keys** - Navigate through clipboard items
+- **Enter** - Copy selected item to clipboard
+- **⌘+F** - Focus search field
+- **Escape** - Close clipboard window
 
 ## Features
 
@@ -15,7 +55,24 @@ A native macOS clipboard manager built with Swift and SwiftUI that runs as both 
 - 🔄 **Automatic Updates**: Built-in update system that checks for new versions automatically
 - ⚙️ **Customizable Update Intervals**: Set how often the app checks for updates (1 hour to 1 week)
 
-## Installation & Usage
+## 📥 **Download & Installation**
+
+### **Quick Download (Recommended)**
+� **[Download ClipboardManager v1.0.4 Installer](https://github.com/salimmous/clipboard-manager/releases/download/v1.0.4/ClipboardManager-1.0.4-Installer.dmg)**
+
+1. Click the download link above
+2. Open the downloaded `.dmg` file
+3. Drag ClipboardManager to your Applications folder
+4. Launch from Applications or Spotlight
+
+### **Alternative Download Links**
+- 📦 [All Releases](https://github.com/salimmous/clipboard-manager/releases)
+- 🔄 [Latest Release](https://github.com/salimmous/clipboard-manager/releases/latest)
+- 💾 [Direct DMG Download](https://github.com/salimmous/clipboard-manager/releases/download/v1.0.4/ClipboardManager-1.0.4-Installer.dmg)
+
+---
+
+## 🛠️ **Build from Source (Advanced)**
 
 ### Option 1: Build from Source
 ```bash

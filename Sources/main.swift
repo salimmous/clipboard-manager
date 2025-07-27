@@ -187,10 +187,10 @@ enum AppearanceMode: String, CaseIterable, Codable {
 class AppSettings: ObservableObject {
     @Published var appearanceMode: AppearanceMode = .system
     @Published var maxItems: Int = 100
-    @Published var updateInterval: Double = 0.5 // في الثواني
+    @Published var updateInterval: Double = 0.5 // in seconds
     @Published var autoUpdateEnabled: Bool = true
-    @Published var checkUpdateInterval: Double = 24.0 // بالساعات
-    @Published var autoInstallUpdates: Bool = false // تثبيت التحديثات تلقائياً
+    @Published var checkUpdateInterval: Double = 24.0 // in hours
+    @Published var autoInstallUpdates: Bool = false // auto-install updates
     
     init() {
         loadSettings()
@@ -233,10 +233,10 @@ class AppSettings: ObservableObject {
         UserDefaults.standard.set(checkUpdateInterval, forKey: "CheckUpdateInterval")
         applyAppearanceMode()
         
-        // إعادة تشغيل المراقبة بالفترة الجديدة
+        // Restart monitoring with new interval
         ClipboardManager.shared.restartMonitoring()
         
-        // إعادة تشغيل فحص التحديثات
+        // Restart update checking
         if autoUpdateEnabled {
             AppUpdateManager.shared.startPeriodicCheck()
         } else {
@@ -268,18 +268,18 @@ class AppUpdateManager: ObservableObject {
     @Published var isChecking = false
     
     private var updateTimer: Timer?
-    private let currentVersion = "1.0.4"
+    private let currentVersion = "1.1.0"
     private let updateCheckURL = "https://api.github.com/repos/salimmous/clipboard-manager/releases/latest"
     
     private init() {}
     
     func startPeriodicCheck() {
         stopPeriodicCheck()
-        let interval = TimeInterval(AppSettings().checkUpdateInterval * 3600) // تحويل الساعات إلى ثواني
+        let interval = TimeInterval(AppSettings().checkUpdateInterval * 3600) // convert hours to seconds
         updateTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
             self.checkForUpdates()
         }
-        // فحص فوري عند البدء
+        // Immediate check on start
         checkForUpdates()
     }
     
@@ -314,7 +314,7 @@ class AppUpdateManager: ObservableObject {
                 self?.latestVersion = tagName
                 self?.downloadURL = downloadURL
                 
-                // مقارنة الإصدارات
+                // Compare versions
                 if self?.isNewerVersion(tagName) == true {
                     self?.isUpdateAvailable = true
                     self?.showUpdateNotification()
@@ -979,171 +979,93 @@ struct MenuBarView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Modern Header with gradient background
+            // Clean Header
             HStack {
-                HStack(spacing: 12) {
-                    // Custom logo in header
-                    if let logoImage = loadHeaderLogo() {
-                        Image(nsImage: logoImage)
-                            .resizable()
-                            .frame(width: 24, height: 24)
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    } else {
-                        Image(systemName: "clipboard.fill")
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    }
-                    
-                    Text("Clipboard Manager")
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                        .foregroundColor(.primary)
-                }
+                // Simple icon
+                Image(systemName: "doc.on.clipboard")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(.primary)
+                
+                Text("Clipboard Manager")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.primary)
                 
                 Spacer()
                 
                 Button(action: {
                     clipboardManager.showingSettings = true
                 }) {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 16, weight: .medium))
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.secondary)
-                        .background(
-                            Circle()
-                                .fill(Color.gray.opacity(0.1))
-                                .frame(width: 32, height: 32)
-                        )
                 }
                 .buttonStyle(.borderless)
                 .help("Settings")
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 18)
-            .background(
-                LinearGradient(
-                    colors: [Color(NSColor.controlBackgroundColor), Color(NSColor.controlBackgroundColor).opacity(0.8)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color(NSColor.controlBackgroundColor))
             
-            // Modern Search Bar
-            HStack(spacing: 12) {
+            // Simple Search Bar
+            HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.system(size: 13))
                     .foregroundColor(.secondary)
                 
-                TextField("Search clipboard items...", text: $searchText)
+                TextField("Search...", text: $searchText)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.primary)
+                    .font(.system(size: 13))
                 
                 if !searchText.isEmpty {
                     Button(action: {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            searchText = ""
-                        }
+                        searchText = ""
                     }) {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 14))
+                            .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     }
                     .buttonStyle(.plain)
-                    .help("Clear search")
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.gray.opacity(0.08))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                    )
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.gray.opacity(0.1))
             )
-            .padding(.horizontal, 20)
-            .padding(.bottom, 16)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
             
             Divider()
             
             // Content Area
             if filteredItems.isEmpty {
-                VStack(spacing: 20) {
-                    // Custom logo or clipboard icon
-                    if let logoImage = loadHeaderLogo() {
-                        Image(nsImage: logoImage)
-                            .resizable()
-                            .frame(width: 64, height: 64)
-                            .opacity(0.6)
-                    } else {
-                        Image(systemName: "clipboard")
-                            .font(.system(size: 56, weight: .light))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.blue.opacity(0.6), .purple.opacity(0.6)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    }
+                VStack(spacing: 16) {
+                    Image(systemName: "clipboard")
+                        .font(.system(size: 40, weight: .light))
+                        .foregroundColor(.secondary.opacity(0.6))
                     
-                    VStack(spacing: 8) {
+                    VStack(spacing: 4) {
                         Text("No clipboard items")
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                            .font(.system(size: 14, weight: .medium))
                             .foregroundColor(.primary)
                         
                         Text("Copy text to see it here")
-                            .font(.system(size: 15))
+                            .font(.system(size: 12))
                             .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
                     }
-                    
-                    // Helpful tip
-                    HStack(spacing: 8) {
-                        Image(systemName: "command")
-                            .font(.system(size: 12, weight: .medium))
-                        Text("+")
-                            .font(.system(size: 12, weight: .bold))
-                        Image(systemName: "x.square")
-                            .font(.system(size: 12, weight: .medium))
-                        Text("to open quickly")
-                            .font(.system(size: 12, weight: .medium))
-                    }
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.gray.opacity(0.1))
-                    )
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 50)
+                .padding(.vertical, 40)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(Array(filteredItems.prefix(showingMore ? filteredItems.count : 8).enumerated()), id: \.element.id) { index, item in
+                    LazyVStack(spacing: 1) {
+                        ForEach(filteredItems.prefix(showingMore ? filteredItems.count : 8), id: \.id) { item in
                             MenuBarItemView(item: item)
-                                .background(
-                                    Rectangle()
-                                        .fill(index % 2 == 0 ? Color.clear : Color.gray.opacity(0.05))
-                                )
                         }
                     }
                 }
-                .frame(maxHeight: 400)
+                .frame(maxHeight: 300)
                 
                 if filteredItems.count > 8 && !showingMore {
                     Divider()
@@ -1152,19 +1074,18 @@ struct MenuBarView: View {
                         showingMore = true
                     }) {
                         HStack {
-                            Text("Show \(filteredItems.count - 8) more items")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.blue)
+                            Text("Show \(filteredItems.count - 8) more")
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
                             
                             Spacer()
                             
                             Image(systemName: "chevron.down")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.blue)
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
-                        .background(Color.blue.opacity(0.05))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
                     }
                     .buttonStyle(.plain)
                 }
@@ -1174,60 +1095,54 @@ struct MenuBarView: View {
             if updateManager.isUpdateAvailable || updateManager.isChecking {
                 Divider()
                 
-                VStack(spacing: 8) {
+                VStack(spacing: 6) {
                     if updateManager.isChecking {
                         HStack {
                             ProgressView()
-                                .scaleEffect(0.8)
-                            Text("Checking for updates...")
-                                .font(.system(size: 12))
+                                .scaleEffect(0.7)
+                            Text("Checking...")
+                                .font(.system(size: 11))
                                 .foregroundColor(.secondary)
                             Spacer()
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 6)
                     } else if updateManager.isUpdateAvailable {
                         HStack {
-                            Image(systemName: "arrow.down.circle.fill")
-                                .font(.system(size: 14))
+                            Image(systemName: "arrow.down.circle")
+                                .font(.system(size: 12))
                                 .foregroundColor(.blue)
                             
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Update Available")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(.primary)
-                                Text("Version \(updateManager.latestVersion)")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.secondary)
-                            }
+                            Text("Update Available")
+                                .font(.system(size: 11))
+                                .foregroundColor(.primary)
                             
                             Spacer()
                             
                             Button("Download") {
                                 updateManager.downloadAndInstallUpdate()
                             }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
+                            .buttonStyle(.borderless)
+                            .controlSize(.mini)
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
-                        .background(Color.blue.opacity(0.05))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 6)
                     }
                 }
             }
             
-            // Footer with update check button
+            // Footer
             Divider()
             
             HStack {
                 Button(action: {
                     updateManager.checkForUpdates()
                 }) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 4) {
                         Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 11))
+                            .font(.system(size: 10))
                         Text("Check Updates")
-                            .font(.system(size: 11))
+                            .font(.system(size: 10))
                     }
                     .foregroundColor(.secondary)
                 }
@@ -1236,13 +1151,12 @@ struct MenuBarView: View {
                 
                 Spacer()
                 
-                Text("v1.0.4")
-                    .font(.system(size: 10, design: .monospaced))
+                Text("v1.1.0")
+                    .font(.system(size: 9, design: .monospaced))
                     .foregroundColor(.secondary)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 8)
-            .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
         }
         .frame(width: 400)
         .background(
@@ -1270,18 +1184,18 @@ struct MenuBarItemView: View {
             pasteboard.clearContents()
             pasteboard.setString(item.content, forType: .string)
         }) {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 // Content Text
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(item.content)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: 12))
                         .foregroundColor(.primary)
                         .lineLimit(2)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .multilineTextAlignment(.leading)
                     
                     Text("Just now")
-                        .font(.system(size: 11))
+                        .font(.system(size: 10))
                         .foregroundColor(.secondary)
                 }
                 
@@ -1289,12 +1203,12 @@ struct MenuBarItemView: View {
                 
                 // Action Buttons (shown on hover)
                 if isHovered {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         Button(action: {
                             clipboardManager.togglePin(for: item)
                         }) {
                             Image(systemName: item.isPinned ? "pin.fill" : "pin")
-                                .font(.system(size: 12))
+                                .font(.system(size: 10))
                                 .foregroundColor(item.isPinned ? .orange : .secondary)
                         }
                         .buttonStyle(.plain)
@@ -1318,7 +1232,7 @@ struct MenuBarItemView: View {
                             }
                         } label: {
                             Image(systemName: "ellipsis")
-                                .font(.system(size: 12))
+                                .font(.system(size: 10))
                                 .foregroundColor(.secondary)
                         }
                         .menuStyle(.borderlessButton)
@@ -1326,8 +1240,8 @@ struct MenuBarItemView: View {
                     }
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -1423,13 +1337,7 @@ struct SettingsView: View {
                     HStack(spacing: 12) {
                         Image(systemName: "gearshape.fill")
                             .font(.system(size: 24, weight: .medium))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .foregroundColor(.blue)
                         
                         Text("Settings")
                             .font(.system(size: 28, weight: .bold, design: .rounded))
@@ -1662,7 +1570,7 @@ struct GeneralSettingsView: View {
                     ModernSettingsSection(
                         title: "App Updates",
                         icon: "arrow.down.circle.fill",
-                        iconColor: .indigo
+                        iconColor: .blue
                     ) {
                         VStack(alignment: .leading, spacing: 16) {
                             Toggle(isOn: $settings.autoUpdateEnabled) {
@@ -1675,7 +1583,7 @@ struct GeneralSettingsView: View {
                                         .foregroundColor(.primary)
                                 }
                             }
-                            .toggleStyle(SwitchToggleStyle(tint: .indigo))
+                            .toggleStyle(SwitchToggleStyle(tint: .blue))
                             .onChange(of: settings.autoUpdateEnabled) { _ in
                                 settings.saveSettings()
                             }
@@ -1710,7 +1618,7 @@ struct GeneralSettingsView: View {
                                     HStack {
                                         Image(systemName: "clock.fill")
                                             .font(.system(size: 16))
-                                            .foregroundColor(.indigo)
+                                            .foregroundColor(.blue)
                                         Text("Check Interval")
                                             .font(.system(size: 16, weight: .medium))
                                             .foregroundColor(.primary)
@@ -1724,17 +1632,17 @@ struct GeneralSettingsView: View {
                                             .background(
                                                 Capsule()
                                                     .fill(LinearGradient(
-                                                        colors: [.indigo, .indigo.opacity(0.8)],
+                                                        colors: [.blue, .blue.opacity(0.8)],
                                                         startPoint: .top,
                                                         endPoint: .bottom
                                                     ))
                                             )
-                                            .shadow(color: .indigo.opacity(0.3), radius: 3, x: 0, y: 1)
+                                            .shadow(color: .blue.opacity(0.3), radius: 3, x: 0, y: 1)
                                     }
                                     
                                     VStack(spacing: 6) {
                                         Slider(value: $settings.checkUpdateInterval, in: 1...168, step: 1)
-                                            .accentColor(.indigo)
+                                            .accentColor(.blue)
                                             .onChange(of: settings.checkUpdateInterval) { _ in
                                                 settings.saveSettings()
                                             }
@@ -1819,13 +1727,7 @@ struct AboutView: View {
                     } else {
                         Image(systemName: "doc.on.clipboard.fill")
                             .font(.system(size: 80, weight: .light))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .foregroundColor(.blue)
                             .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
                     }
                     
@@ -1993,13 +1895,7 @@ struct ModernSettingsSection<Content: View>: View {
             HStack(spacing: 12) {
                 Image(systemName: icon)
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [iconColor, iconColor.opacity(0.7)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .foregroundColor(iconColor)
                     .frame(width: 32, height: 32)
                     .background(
                         Circle()

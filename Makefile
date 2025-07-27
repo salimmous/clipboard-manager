@@ -32,9 +32,11 @@ app-bundle: build
 	mkdir -p ClipboardManager.app/Contents/Resources
 	cp .build/release/ClipboardManager ClipboardManager.app/Contents/MacOS/
 	cp Info.plist ClipboardManager.app/Contents/
-	cp AppIcon.icns ClipboardManager.app/Contents/Resources/
-	cp logo.png ClipboardManager.app/Contents/Resources/
-	@echo "App bundle created: ClipboardManager.app"
+	if [ -f CustomAppIcon.icns ]; then cp CustomAppIcon.icns ClipboardManager.app/Contents/Resources/AppIcon.icns; fi
+	if [ -f clipboard-logo.svg ]; then cp clipboard-logo.svg ClipboardManager.app/Contents/Resources/; fi
+	@echo "Code signing app bundle with Developer ID..."
+	codesign --force --deep --sign "Developer ID Application: MUSTAFA HALASMUNLA (KAAL9WK5ZP)" --options runtime ClipboardManager.app
+	@echo "App bundle created and signed: ClipboardManager.app"
 	@echo "You can now drag ClipboardManager.app to your Applications folder!"
 
 # Show help

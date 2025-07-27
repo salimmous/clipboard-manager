@@ -6,7 +6,7 @@
 set -e
 
 APP_NAME="ClipboardManager"
-VERSION="1.0.4"
+VERSION="1.1.0"
 DMG_NAME="${APP_NAME}-${VERSION}-Installer"
 SOURCE_APP="ClipboardManager.app"
 TEMP_DMG="temp_${DMG_NAME}.dmg"
@@ -42,6 +42,10 @@ mkdir "$TEMP_DIR"
 
 # Copy only the app
 cp -R "$SOURCE_APP" "$TEMP_DIR/"
+
+# Ensure the app is code signed with Developer ID
+echo -e "${YELLOW}Code signing the app with Developer ID...${NC}"
+codesign --force --deep --sign "Developer ID Application: MUSTAFA HALASMUNLA (KAAL9WK5ZP)" --options runtime "$TEMP_DIR/$SOURCE_APP" || echo -e "${YELLOW}Warning: Could not sign app${NC}"
 
 # Create temporary DMG from clean directory
 echo -e "${YELLOW}Creating temporary DMG...${NC}"

@@ -1,60 +1,63 @@
-# تثبيت مدير الحافظة
+# ClipboardManager Installation Guide
 
-## طريقة التثبيت السريع
+## Quick Installation
 
-### الخطوة 1: تحميل التطبيق
-1. اذهب إلى [صفحة الإصدارات](https://github.com/salimmous/clipboard-manager/releases)
-2. حمل أحدث إصدار `ClipboardManager-v1.0.1.zip`
+### Step 1: Download the App
+1. Go to [Releases page](https://github.com/salimmous/clipboard-manager/releases)
+2. Download the latest version `ClipboardManager-1.0.4-Installer.dmg`
 
-### الخطوة 2: فك الضغط والتثبيت
-1. فك ضغط الملف المحمل
-2. اسحب `ClipboardManager.app` إلى مجلد `Applications`
-3. افتح التطبيق من مجلد التطبيقات
+### Step 2: Install the Application
+1. Open the downloaded `.dmg` file
+2. Drag `ClipboardManager.app` to the `Applications` folder
+3. Launch the app from Applications folder
 
-### الخطوة 3: السماح بتشغيل التطبيق
-إذا ظهرت رسالة أمان:
-1. اذهب إلى `System Preferences` > `Security & Privacy`
-2. اضغط على `Open Anyway` بجانب اسم التطبيق
+### Step 3: Allow App to Run
+If you see a security warning:
+1. Go to `System Preferences` > `Security & Privacy`
+2. Click `Open Anyway` next to the app name
 
-## التثبيت عبر Terminal
+## Terminal Installation
 
 ```bash
-# تحميل أحدث إصدار
-curl -L -o ClipboardManager.zip https://github.com/salimmous/clipboard-manager/releases/download/v1.0.1/ClipboardManager-v1.0.1.zip
+# Download latest release
+curl -L -o ClipboardManager.dmg https://github.com/salimmous/clipboard-manager/releases/download/v1.0.4/ClipboardManager-1.0.4-Installer.dmg
 
-# فك الضغط
-unzip ClipboardManager.zip
+# Mount the DMG
+hdiutil attach ClipboardManager.dmg
 
-# نقل إلى مجلد التطبيقات
-mv ClipboardManager.app /Applications/
+# Copy to Applications
+cp -R "/Volumes/ClipboardManager/ClipboardManager.app" /Applications/
 
-# تشغيل التطبيق
+# Unmount DMG
+hdiutil detach "/Volumes/ClipboardManager"
+
+# Launch the app
 open /Applications/ClipboardManager.app
 ```
 
-## المتطلبات
-- macOS 10.15 أو أحدث
-- 50 MB مساحة فارغة
+## Requirements
+- macOS 13.0 (Ventura) or later
+- 50 MB free space
 
-## الميزات
-- ✅ حفظ تلقائي للحافظة
-- ✅ تحديثات تلقائية
-- ✅ واجهة سهلة الاستخدام
-- ✅ بحث سريع في المحفوظات
-- ✅ اختصارات لوحة المفاتيح
+## Features
+- ✅ Automatic clipboard saving
+- ✅ Automatic updates
+- ✅ User-friendly interface
+- ✅ Quick search in history
+- ✅ Keyboard shortcuts
 
-## المساعدة
-إذا واجهت مشاكل في التثبيت:
-1. تأكد من أن macOS محدث
-2. تحقق من وجود مساحة كافية
-3. أعد تشغيل الجهاز وحاول مرة أخرى
+## Troubleshooting
+If you encounter installation issues:
+1. Make sure macOS is up to date
+2. Check for sufficient free space
+3. Restart your Mac and try again
 
-## إلغاء التثبيت
-لإزالة التطبيق:
-```bash
-rm -rf /Applications/ClipboardManager.app
-```
+## Uninstallation
+To remove the app:
+1. Go to `Applications` folder
+2. Drag `ClipboardManager.app` to Trash
+3. Empty Trash
 
 ---
 
-**ملاحظة**: التطبيق يدعم التحديثات التلقائية، لذا ستحصل على أحدث الميزات تلقائياً!
+**Note**: The app supports automatic updates, so you'll get the latest features automatically!

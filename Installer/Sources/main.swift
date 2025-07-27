@@ -25,13 +25,7 @@ struct InstallerView: View {
                     } else {
                         Image(systemName: "doc.on.clipboard.fill")
                             .font(.system(size: 120, weight: .light))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .foregroundColor(.blue)
                             .shadow(color: .blue.opacity(0.3), radius: 15, x: 0, y: 8)
                     }
                     

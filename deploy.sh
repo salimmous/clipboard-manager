@@ -108,6 +108,7 @@ chmod +x create_dmg.sh
 
 # Force unmount any lingering DMG volumes
 echo -e "${YELLOW}Force unmounting any lingering DMG volumes...${NC}"
+pkill -f "Install ${APP_NAME}" 2>/dev/null || true
 hdiutil detach -force "/Volumes/Install ${APP_NAME}" 2>/dev/null || true
 sleep 2
 

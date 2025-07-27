@@ -4,6 +4,11 @@ All notable changes to ClipboardManager will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.1] - 2025-07-28
+### Fixed
+- Bug fixes and improvements
+
+
 ## [1.1.0] - 2025-07-27
 ### Added
 - Professional icon set with high-quality branding

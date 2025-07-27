@@ -268,7 +268,7 @@ class AppUpdateManager: ObservableObject {
     @Published var isChecking = false
     
     private var updateTimer: Timer?
-    private let currentVersion = "1.1.0"
+    private let currentVersion = "1.1.1"
     private let updateCheckURL = "https://api.github.com/repos/salimmous/clipboard-manager/releases/latest"
     
     private init() {}
@@ -597,6 +597,11 @@ class ClipboardManager: ObservableObject {
             items = Array(items.prefix(maxItems))
         }
         sortItems()
+        saveItems()
+    }
+
+    func deleteAllItems() {
+        items.removeAll()
         saveItems()
     }
     
@@ -946,367 +951,101 @@ struct ClipboardPopupItemView: View {
 }
 
 
-// MARK: - Menu Bar View (Enhanced)
-// This part is for the menu bar icon's dropdown, not the main popup window.
+// MARK: - Traditional Menu Bar View
 struct MenuBarView: View {
     @EnvironmentObject var clipboardManager: ClipboardManager
+    @StateObject private var appSettings = AppSettings()
     @StateObject private var updateManager = AppUpdateManager.shared
-    @State private var searchText = ""
-    @State private var showingMore = false
-    
-    var filteredItems: [ClipboardItem] {
-        if searchText.isEmpty {
-            return clipboardManager.items
-        } else {
-            return clipboardManager.items.filter { $0.content.localizedCaseInsensitiveContains(searchText) }
-        }
-    }
-    
-    private func loadHeaderLogo() -> NSImage? {
-        let iconPaths = [
-            "/Users/salim/Downloads/copy clipboard /logos/Assets.xcassets/AppIcon.appiconset/32.png",
-            "/Users/salim/Downloads/copy clipboard /logos/Assets.xcassets/AppIcon.appiconset/24.png",
-            "/Users/salim/Downloads/copy clipboard /clipboard-logo.png"
-        ]
-        
-        for iconPath in iconPaths {
-            if let logoImage = NSImage(contentsOfFile: iconPath) {
-                return logoImage
-            }
-        }
-        return nil
-    }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Clean Header
-            HStack {
-                // Simple icon
-                Image(systemName: "doc.on.clipboard")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.primary)
-                
-                Text("Clipboard Manager")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.primary)
-                
-                Spacer()
-                
-                Button(action: {
-                    clipboardManager.showingSettings = true
+        VStack(alignment: .leading, spacing: 0) {
+            // Pinned Items
+            ForEach(clipboardManager.items.filter { $0.isPinned }) { item in
+                    Button(action: {
+                    clipboardManager.copyToClipboard(item)
                 }) {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.borderless)
-                .help("Settings")
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(Color(NSColor.controlBackgroundColor))
-            
-            // Simple Search Bar
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 13))
-                    .foregroundColor(.secondary)
-                
-                TextField("Search...", text: $searchText)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 13))
-                
-                if !searchText.isEmpty {
-                    Button(action: {
-                        searchText = ""
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.gray.opacity(0.1))
-            )
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
-            
-            Divider()
-            
-            // Content Area
-            if filteredItems.isEmpty {
-                VStack(spacing: 16) {
-                    Image(systemName: "clipboard")
-                        .font(.system(size: 40, weight: .light))
-                        .foregroundColor(.secondary.opacity(0.6))
-                    
-                    VStack(spacing: 4) {
-                        Text("No clipboard items")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.primary)
-                        
-                        Text("Copy text to see it here")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 40)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 1) {
-                        ForEach(filteredItems.prefix(showingMore ? filteredItems.count : 8), id: \.id) { item in
-                            MenuBarItemView(item: item)
-                        }
-                    }
-                }
-                .frame(maxHeight: 300)
-                
-                if filteredItems.count > 8 && !showingMore {
-                    Divider()
-                    
-                    Button(action: {
-                        showingMore = true
-                    }) {
-                        HStack {
-                            Text("Show \(filteredItems.count - 8) more")
-                                .font(.system(size: 12))
-                                .foregroundColor(.secondary)
-                            
-                            Spacer()
-                            
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 10))
+                    HStack {
+                        Text(item.content)
+                            .lineLimit(1)
+                        Spacer()
+                        Image(systemName: "pin.fill")
                                 .foregroundColor(.secondary)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
                     }
-                    .buttonStyle(.plain)
-                }
             }
             
-            // Update Section
-            if updateManager.isUpdateAvailable || updateManager.isChecking {
+            if !clipboardManager.items.filter({ $0.isPinned }).isEmpty {
                 Divider()
-                
-                VStack(spacing: 6) {
-                    if updateManager.isChecking {
-                        HStack {
-                            ProgressView()
-                                .scaleEffect(0.7)
-                            Text("Checking...")
-                                .font(.system(size: 11))
-                                .foregroundColor(.secondary)
-                            Spacer()
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 6)
-                    } else if updateManager.isUpdateAvailable {
-                        HStack {
-                            Image(systemName: "arrow.down.circle")
-                                .font(.system(size: 12))
-                                .foregroundColor(.blue)
-                            
-                            Text("Update Available")
-                                .font(.system(size: 11))
-                                .foregroundColor(.primary)
-                            
-                            Spacer()
-                            
-                            Button("Download") {
-                                updateManager.downloadAndInstallUpdate()
-                            }
-                            .buttonStyle(.borderless)
-                            .controlSize(.mini)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 6)
-                    }
+            }
+            
+            // Recent Items
+            ForEach(clipboardManager.items.filter { !$0.isPinned }.prefix(10)) { item in
+                    Button(action: {
+                    clipboardManager.copyToClipboard(item)
+                }) {
+                    Text(item.content)
+                        .lineLimit(1)
                 }
             }
             
-            // Footer
+            if clipboardManager.items.isEmpty {
+                Text("No clipboard items")
+                            .foregroundColor(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+            }
+            
             Divider()
             
-            HStack {
-                Button(action: {
+            // Main Actions
+            Button("Show All") {
+                clipboardManager.showWindow()
+            }
+            
+            Button("Clear All") {
+                clipboardManager.deleteAllItems()
+            }
+            
+            Divider()
+            
+            // Settings and Updates
+            Button("Check for Updates...") {
                     updateManager.checkForUpdates()
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 10))
-                        Text("Check Updates")
-                            .font(.system(size: 10))
-                    }
-                    .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .disabled(updateManager.isChecking)
-                
-                Spacer()
-                
-                Text("v1.1.0")
-                    .font(.system(size: 9, design: .monospaced))
-                    .foregroundColor(.secondary)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 6)
+            
+            Button("Settings...") {
+                openSettingsWindow()
+            }
+            
+            Divider()
+            
+            // Quit
+            Button("Quit Clipboard Manager") {
+                NSApplication.shared.terminate(nil)
+            }
         }
-        .frame(width: 400)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.controlBackgroundColor))
-                .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .preferredColorScheme(nil)
-        .sheet(isPresented: $clipboardManager.showingSettings) {
-            SettingsView()
+        .padding(6)
+    }
+    
+    private func openSettingsWindow() {
+        if let window = NSApp.windows.first(where: { $0.title == "Clipboard Manager Settings" }) {
+            window.makeKeyAndOrderFront(nil)
+                    } else {
+            let settingsView = SettingsView().environmentObject(appSettings)
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 480, height: 300),
+                styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                backing: .buffered,
+                defer: false
+            )
+            window.center()
+            window.setFrameAutosaveName("Settings")
+            window.contentView = NSHostingView(rootView: settingsView)
+            window.title = "Clipboard Manager Settings"
+            window.makeKeyAndOrderFront(nil)
         }
     }
 }
-
-// MARK: - Menu Bar Item View
-struct MenuBarItemView: View {
-    let item: ClipboardItem
-    @EnvironmentObject var clipboardManager: ClipboardManager
-    @State private var isHovered = false
-    
-    var body: some View {
-        Button(action: {
-            let pasteboard = NSPasteboard.general
-            pasteboard.clearContents()
-            pasteboard.setString(item.content, forType: .string)
-        }) {
-            HStack(spacing: 10) {
-                // Content Text
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(item.content)
-                        .font(.system(size: 12))
-                        .foregroundColor(.primary)
-                        .lineLimit(2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .multilineTextAlignment(.leading)
-                    
-                    Text("Just now")
-                        .font(.system(size: 10))
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-                
-                // Action Buttons (shown on hover)
-                if isHovered {
-                    HStack(spacing: 6) {
-                        Button(action: {
-                            clipboardManager.togglePin(for: item)
-                        }) {
-                            Image(systemName: item.isPinned ? "pin.fill" : "pin")
-                                .font(.system(size: 10))
-                                .foregroundColor(item.isPinned ? .orange : .secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .help(item.isPinned ? "Unpin" : "Pin")
-                        
-                        Menu {
-                            Button("Copy") {
-                                let pasteboard = NSPasteboard.general
-                                pasteboard.clearContents()
-                                pasteboard.setString(item.content, forType: .string)
-                            }
-                            
-                            Button("Share") {
-                                shareToOtherApps(item.content)
-                            }
-                            
-                            Divider()
-                            
-                            Button("Delete") {
-                                clipboardManager.removeItem(item)
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis")
-                                .font(.system(size: 10))
-                                .foregroundColor(.secondary)
-                        }
-                        .menuStyle(.borderlessButton)
-                        .help("More Options")
-                    }
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isHovered = hovering
-            }
-        }
-        .help("Click to copy")
-    }
-    
-
-    
-    private var contentTypeIcon: String {
-        if isURL(item.content) {
-            return "link"
-        } else if item.content.contains("@") && item.content.contains(".") {
-            return "envelope"
-        } else if item.content.allSatisfy({ $0.isNumber || $0.isWhitespace || "+-().".contains($0) }) {
-            return "phone"
-        } else {
-            return "doc.text"
-        }
-    }
-    
-    private var contentTypeColor: Color {
-        if isURL(item.content) {
-            return .blue
-        } else if item.content.contains("@") && item.content.contains(".") {
-            return .green
-        } else if item.content.allSatisfy({ $0.isNumber || $0.isWhitespace || "+-().".contains($0) }) {
-            return .purple
-        } else {
-            return .gray
-        }
-    }
-    
-    private func isURL(_ string: String) -> Bool {
-        return string.hasPrefix("http://") || string.hasPrefix("https://") || string.hasPrefix("www.")
-    }
-    
-    private func openInBrowser(_ url: String) {
-        var urlString = url
-        if !urlString.hasPrefix("http://") && !urlString.hasPrefix("https://") {
-            urlString = "https://" + urlString
-        }
-        if let url = URL(string: urlString) {
-            NSWorkspace.shared.open(url)
-        }
-    }
-    
-    private func shareToOtherApps(_ content: String) {
-        let sharingService = NSSharingService(named: .sendViaAirDrop)
-        sharingService?.perform(withItems: [content])
-    }
-    
-    private func timeAgo(from date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
-    }
-}
-
-
-
 
 // MARK: - Drag Area View for Window Dragging
 struct DragAreaView: NSViewRepresentable {
@@ -1330,529 +1069,74 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Modern Header with gradient
-            VStack(spacing: 0) {
-                HStack {
-                    HStack(spacing: 12) {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 24, weight: .medium))
-                            .foregroundColor(.blue)
-                        
-                        Text("Settings")
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundColor(.primary)
-                    }
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        settings.saveSettings()
-                        dismiss()
-                    }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 16, weight: .medium))
-                            Text("Done")
-                                .font(.system(size: 16, weight: .semibold))
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 10)
-                        .background(
-                            LinearGradient(
-                                colors: [.blue, .blue.opacity(0.8)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .cornerRadius(12)
-                        .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
-                    }
-                    .buttonStyle(.plain)
-                    .scaleEffect(1.0)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: false)
-                }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 20)
-                
-                // Subtle separator
-                Rectangle()
-                    .fill(LinearGradient(
-                        colors: [.gray.opacity(0.3), .clear],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    ))
-                    .frame(height: 1)
-            }
-            .background(
-                LinearGradient(
-                    colors: [Color(NSColor.controlBackgroundColor), Color(NSColor.controlBackgroundColor).opacity(0.95)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
-            
-            // Tabbed Content
-            TabView {
-                GeneralSettingsView(settings: settings)
-                    .tabItem {
-                        Image(systemName: "gearshape")
-                        Text("General")
-                    }
-                
-                AboutView()
-                    .tabItem {
-                        Image(systemName: "info.circle")
-                        Text("About")
-                    }
-            }
-            .padding(.top, 20)
-            .background(Color(NSColor.windowBackgroundColor))
-        }
-        .frame(width: 600, height: 500)
-        .background(Color(NSColor.windowBackgroundColor))
-    }
-}
-
-// MARK: - General Settings View
-struct GeneralSettingsView: View {
-    @ObservedObject var settings: AppSettings
-    
-    var body: some View {
-        // Settings Content with modern design
-        ScrollView {
-                VStack(spacing: 24) {
+        Form {
                     // Appearance Section
-                    ModernSettingsSection(
-                        title: "Appearance",
-                        icon: "paintbrush.fill",
-                        iconColor: .orange
-                    ) {
-                        VStack(alignment: .leading, spacing: 16) {
-                            HStack {
-                                Image(systemName: "sun.max.fill")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.orange)
-                                Text("Theme")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.primary)
-                                Spacer()
-                            }
-                            
-                            Picker("Appearance", selection: $settings.appearanceMode) {
+            Section(header: Text("Appearance").font(.headline)) {
+                Picker("Theme", selection: $settings.appearanceMode) {
                                 ForEach(AppearanceMode.allCases, id: \.self) { mode in
                                     Text(mode.displayName).tag(mode)
                                 }
                             }
                             .pickerStyle(.segmented)
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(10)
-                            .onChange(of: settings.appearanceMode) { _ in
-                                settings.saveSettings()
-                            }
-                        }
-                    }
-                    
-                    // Storage Section
-                    ModernSettingsSection(
-                        title: "Storage",
-                        icon: "internaldrive.fill",
-                        iconColor: .green
-                    ) {
-                        VStack(alignment: .leading, spacing: 16) {
-                            HStack {
-                                Image(systemName: "tray.full.fill")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.green)
-                                Text("Maximum Items")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.primary)
-                                Spacer()
-                                
-                                Text("\(settings.maxItems)")
-                                    .font(.system(size: 16, weight: .bold, design: .monospaced))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(
-                                        Capsule()
-                                            .fill(LinearGradient(
-                                                colors: [.green, .green.opacity(0.8)],
-                                                startPoint: .top,
-                                                endPoint: .bottom
-                                            ))
-                                    )
-                                    .shadow(color: .green.opacity(0.3), radius: 4, x: 0, y: 2)
-                            }
-                            
-                            VStack(spacing: 8) {
-                                Slider(value: Binding(
-                                    get: { Double(settings.maxItems) },
-                                    set: { settings.maxItems = Int($0) }
-                                ), in: 10...500, step: 10)
-                                .accentColor(.green)
-                                .onChange(of: settings.maxItems) { _ in
-                                    settings.saveSettings()
-                                }
-                                
-                                HStack {
-                                    Text("10")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    Spacer()
-                                    Text("500")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Auto-Update Section
-                    ModernSettingsSection(
-                        title: "Auto-Update",
-                        icon: "arrow.clockwise.circle.fill",
-                        iconColor: .blue
-                    ) {
-                        VStack(alignment: .leading, spacing: 16) {
-                            HStack {
-                                Image(systemName: "timer")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.blue)
-                                Text("Update Interval")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.primary)
-                                Spacer()
-                                
-                                Text(String(format: "%.1f s", settings.updateInterval))
-                                    .font(.system(size: 16, weight: .bold, design: .monospaced))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(
-                                        Capsule()
-                                            .fill(LinearGradient(
-                                                colors: [.blue, .blue.opacity(0.8)],
-                                                startPoint: .top,
-                                                endPoint: .bottom
-                                            ))
-                                    )
-                                    .shadow(color: .blue.opacity(0.3), radius: 4, x: 0, y: 2)
-                            }
-                            
-                            VStack(spacing: 8) {
-                                Slider(value: $settings.updateInterval, in: 0.1...5.0, step: 0.1)
-                                    .accentColor(.blue)
-                                    .onChange(of: settings.updateInterval) { _ in
-                                        settings.saveSettings()
-                                    }
-                                
-                                HStack {
-                                    Text("0.1s (Fast)")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    Spacer()
-                                    Text("5.0s (Slow)")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            
-                            Text("Controls how often the app checks for clipboard changes. Lower values provide faster detection but use more system resources.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .padding(.top, 4)
-                        }
-                    }
-                    
-                    // App Updates Section
-                    ModernSettingsSection(
-                        title: "App Updates",
-                        icon: "arrow.down.circle.fill",
-                        iconColor: .blue
-                    ) {
-                        VStack(alignment: .leading, spacing: 16) {
-                            Toggle(isOn: $settings.autoUpdateEnabled) {
-                                HStack {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 18))
-                                        .foregroundColor(settings.autoUpdateEnabled ? .green : .gray)
-                                    Text("Enable Automatic Updates")
-                                        .font(.system(size: 18, weight: .semibold))
-                                        .foregroundColor(.primary)
-                                }
-                            }
-                            .toggleStyle(SwitchToggleStyle(tint: .blue))
-                            .onChange(of: settings.autoUpdateEnabled) { _ in
-                                settings.saveSettings()
-                            }
+            }
+            
+            Divider()
+            
+            // Storage Section
+            Section(header: Text("Storage").font(.headline)) {
+                Stepper(value: $settings.maxItems, in: 10...500, step: 10) {
+                    Text("Max Items: \(settings.maxItems)")
+                }
+            }
+            
+            Divider()
+            
+            // Update Section
+            Section(header: Text("Updates").font(.headline)) {
+                Toggle("Check for Updates Automatically", isOn: $settings.autoUpdateEnabled)
                             
                             if settings.autoUpdateEnabled {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    // Auto Install Toggle
-                                    Toggle(isOn: $settings.autoInstallUpdates) {
-                                        HStack {
-                                            Image(systemName: "arrow.down.app.fill")
-                                                .font(.system(size: 16))
-                                                .foregroundColor(settings.autoInstallUpdates ? .green : .gray)
-                                            Text("Auto Install Updates")
-                                                .font(.system(size: 16, weight: .medium))
-                                                .foregroundColor(.primary)
-                                        }
-                                    }
-                                    .toggleStyle(SwitchToggleStyle(tint: .green))
-                                    .onChange(of: settings.autoInstallUpdates) { _ in
-                                        settings.saveSettings()
-                                    }
-                                    
-                                    Text("When enabled, updates will be installed automatically without asking. Otherwise, you'll be prompted to choose installation method.")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .padding(.leading, 24)
-                                    
-                                    Divider()
-                                        .background(Color.gray.opacity(0.3))
-                                        .padding(.vertical, 8)
-                                    
-                                    HStack {
-                                        Image(systemName: "clock.fill")
-                                            .font(.system(size: 16))
-                                            .foregroundColor(.blue)
-                                        Text("Check Interval")
-                                            .font(.system(size: 16, weight: .medium))
-                                            .foregroundColor(.primary)
-                                        Spacer()
-                                        
-                                        Text(String(format: "%.0f hours", settings.checkUpdateInterval))
-                                            .font(.system(size: 14, weight: .bold, design: .monospaced))
-                                            .foregroundColor(.white)
-                                            .padding(.horizontal, 10)
-                                            .padding(.vertical, 4)
-                                            .background(
-                                                Capsule()
-                                                    .fill(LinearGradient(
-                                                        colors: [.blue, .blue.opacity(0.8)],
-                                                        startPoint: .top,
-                                                        endPoint: .bottom
-                                                    ))
-                                            )
-                                            .shadow(color: .blue.opacity(0.3), radius: 3, x: 0, y: 1)
-                                    }
-                                    
-                                    VStack(spacing: 6) {
-                                        Slider(value: $settings.checkUpdateInterval, in: 1...168, step: 1)
-                                            .accentColor(.blue)
-                                            .onChange(of: settings.checkUpdateInterval) { _ in
+                    Stepper(value: $settings.checkUpdateInterval, in: 1...168, step: 1) {
+                        Text("Check every \(Int(settings.checkUpdateInterval)) hours")
+                    }
+                    Toggle("Install Updates Automatically", isOn: $settings.autoInstallUpdates)
+                }
+            }
+        }
+        .padding()
+        .frame(minWidth: 400, idealWidth: 450, minHeight: 250)
+        .onDisappear {
                                                 settings.saveSettings()
                                             }
-                                        
-                                        HStack {
-                                            Text("1 hour")
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                            Spacer()
-                                            Text("1 week")
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                        }
-                                    }
-                                    
-                                    Text("The app will automatically check for updates from GitHub and notify you when a new version is available.")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .padding(.top, 4)
-                                }
-                                .padding(.leading, 8)
-                            }
-                        }
-                    }
-                    
-                    // Additional Features Section
-                    ModernSettingsSection(
-                        title: "Features",
-                        icon: "star.fill",
-                        iconColor: .purple
-                    ) {
-                        VStack(spacing: 16) {
-                            FeatureRow(
-                                icon: "keyboard.fill",
-                                title: "Keyboard Shortcuts",
-                                description: "⌘+Shift+V to open clipboard",
-                                iconColor: .blue
-                            )
-                            
-                            Divider()
-                                .background(Color.gray.opacity(0.3))
-                            
-                            FeatureRow(
-                                icon: "pin.fill",
-                                title: "Pin Items",
-                                description: "Keep important items at the top",
-                                iconColor: .orange
-                            )
-                            
-                            Divider()
-                                .background(Color.gray.opacity(0.3))
-                            
-                            FeatureRow(
-                                icon: "magnifyingglass",
-                                title: "Search",
-                                description: "Quickly find your clipboard items",
-                                iconColor: .green
-                            )
-                        }
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 20)
-            }
-            .background(Color(NSColor.windowBackgroundColor))
     }
 }
 
 // MARK: - About View
 struct AboutView: View {
     var body: some View {
-        ScrollView {
-            VStack(spacing: 32) {
-                // App Icon and Title
-                VStack(spacing: 16) {
-                    if let logoImage = NSImage(named: "clipboard-logo.png") {
-                        Image(nsImage: logoImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 80, height: 80)
-                            .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
-                    } else {
+        VStack(spacing: 20) {
                         Image(systemName: "doc.on.clipboard.fill")
-                            .font(.system(size: 80, weight: .light))
+                .font(.system(size: 60))
                             .foregroundColor(.blue)
-                            .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
-                    }
-                    
-                    VStack(spacing: 8) {
-                        Text("ClipboardGenius")
-                            .font(.system(size: 32, weight: .bold, design: .rounded))
-                            .foregroundColor(.primary)
-                        
-                        Text("Version 1.0.3")
-                            .font(.system(size: 18, weight: .medium))
+            
+            VStack {
+                Text("Clipboard Manager")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                Text("Version 1.1.0")
                             .foregroundColor(.secondary)
-                    }
-                }
-                
-                // Description
-                VStack(spacing: 16) {
-                    Text("A powerful clipboard manager for macOS")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.primary)
-                        .multilineTextAlignment(.center)
-                    
-                    Text("Keep track of your clipboard history, search through items, and access them quickly with keyboard shortcuts. Built with SwiftUI for a modern and intuitive experience.")
-                        .font(.system(size: 16))
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(nil)
-                        .padding(.horizontal, 20)
-                }
-                
-                // Features
-                ModernSettingsSection(
-                    title: "Features",
-                    icon: "star.fill",
-                    iconColor: .orange
-                ) {
-                    VStack(spacing: 12) {
-                        FeatureRow(
-                            icon: "keyboard.fill",
-                            title: "Global Hotkey",
-                            description: "Quick access with ⌘+X",
-                            iconColor: .blue
-                        )
-                        
-                        Divider()
-                        
-                        FeatureRow(
-                            icon: "magnifyingglass",
-                            title: "Smart Search",
-                            description: "Find clipboard items instantly",
-                            iconColor: .green
-                        )
-                        
-                        Divider()
-                        
-                        FeatureRow(
-                            icon: "paintbrush.fill",
-                            title: "Theme Support",
-                            description: "Light, dark, and system themes",
-                            iconColor: .purple
-                        )
-                        
-                        Divider()
-                        
-                        FeatureRow(
-                            icon: "internaldrive.fill",
-                            title: "Configurable Storage",
-                            description: "Customize maximum items (10-500)",
-                            iconColor: .orange
-                        )
-                    }
-                }
-                
-                // System Info
-                ModernSettingsSection(
-                    title: "System Information",
-                    icon: "info.circle.fill",
-                    iconColor: .blue
-                ) {
-                    VStack(spacing: 12) {
-                        InfoRow(title: "Platform", value: "macOS")
-                        Divider()
-                        InfoRow(title: "Framework", value: "SwiftUI")
-                        Divider()
-                        InfoRow(title: "Language", value: "Swift")
-                        Divider()
-                        InfoRow(title: "Build", value: "Release")
-                    }
-                }
-                
-                // Contact & Links
-                ModernSettingsSection(
-                    title: "Contact & Links",
-                    icon: "link.circle.fill",
-                    iconColor: .green
-                ) {
-                    VStack(spacing: 12) {
-                        InfoRow(title: "Website", value: "clipboardgenius.app")
-                        Divider()
-                        InfoRow(title: "Email", value: "contact@clipboardgenius.app")
-                    }
-                }
-                
-                // Copyright
-                VStack(spacing: 8) {
-                    Text("© 2025 ClipboardGenius")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.secondary)
-                    
-                    Text("Created by Salim Moustanir")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.secondary)
-                    
-                    Text("github.com/salimmous")
-                        .font(.system(size: 11, weight: .regular, design: .monospaced))
-                        .foregroundColor(.blue)
-                    
-                    Text("Made with ❤️ for productivity")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                }
             }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 20)
-        }
-        .background(Color(NSColor.windowBackgroundColor))
+            
+            Text("A simple and powerful clipboard manager for macOS.")
+                        .multilineTextAlignment(.center)
+                    
+            Spacer()
+            
+            Text("© 2024 Your Name")
+                        .foregroundColor(.secondary)
+                }
+        .padding()
+        .frame(minWidth: 300, idealWidth: 350, minHeight: 200)
     }
 }
 

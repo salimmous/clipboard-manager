@@ -105,6 +105,12 @@ echo -e "${GREEN}✅ App bundle created${NC}"
 # Create DMG installer
 echo -e "${BLUE}💿 Creating DMG installer...${NC}"
 chmod +x create_dmg.sh
+
+# Force unmount any lingering DMG volumes
+echo -e "${YELLOW}Force unmounting any lingering DMG volumes...${NC}"
+hdiutil detach -force "/Volumes/Install ${APP_NAME}" 2>/dev/null || true
+sleep 2
+
 echo "n" | ./create_dmg.sh
 
 if [ -f "ClipboardManager-$VERSION-Installer.dmg" ]; then

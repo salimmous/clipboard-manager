@@ -6,7 +6,7 @@
 set -e
 
 APP_NAME="ClipboardManager"
-VERSION="1.1.1"
+VERSION="1.1.2"
 DMG_NAME="${APP_NAME}-${VERSION}-Installer"
 SOURCE_APP="ClipboardManager.app"
 TEMP_DMG="temp_${DMG_NAME}.dmg"
@@ -174,7 +174,22 @@ rm -f /tmp/dmg_setup.applescript
 # Sync and unmount
 echo -e "${YELLOW}Finalizing DMG...${NC}"
 sync
-hdiutil detach "$DEVICE"
+
+# Retry unmounting with a delay
+ATTEMPTS=0
+MAX_ATTEMPTS=5
+while [ $ATTEMPTS -lt $MAX_ATTEMPTS ]; do
+    hdiutil detach "$DEVICE" && break
+    ATTEMPTS=$((ATTEMPTS + 1))
+    echo -e "${YELLOW}Unmount failed, retrying in 2 seconds... ($ATTEMPTS/$MAX_ATTEMPTS)${NC}"
+    sleep 2
+done
+
+# Force unmount if still busy
+if [ $ATTEMPTS -eq $MAX_ATTEMPTS ]; then
+    echo -e "${RED}Unmount failed after multiple attempts, forcing...${NC}"
+    hdiutil detach -force "$DEVICE"
+fi
 
 # Convert to compressed DMG
 echo -e "${YELLOW}Compressing DMG...${NC}"

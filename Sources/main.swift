@@ -268,7 +268,7 @@ class AppUpdateManager: ObservableObject {
     @Published var isChecking = false
     
     private var updateTimer: Timer?
-    private let currentVersion = "1.1.1"
+    private let currentVersion = "1.1.2"
     private let updateCheckURL = "https://api.github.com/repos/salimmous/clipboard-manager/releases/latest"
     
     private init() {}
@@ -1063,51 +1063,136 @@ class DragView: NSView {
     }
 }
 
-// MARK: - Settings View
+// MARK: - Modern Settings View
 struct SettingsView: View {
     @StateObject private var settings = AppSettings()
-    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        TabView {
+            GeneralSettingsView(settings: settings)
+                .tabItem {
+                    Label("General", systemImage: "gear")
+                }
+            
+            UpdatesSettingsView(settings: settings)
+                .tabItem {
+                    Label("Updates", systemImage: "arrow.down.circle")
+                }
+            
+            AboutSettingsView()
+                .tabItem {
+                    Label("About", systemImage: "info.circle")
+                }
+        }
+        .frame(width: 500, height: 320)
+    }
+}
+
+// MARK: - General Settings Tab
+struct GeneralSettingsView: View {
+    @ObservedObject var settings: AppSettings
     
     var body: some View {
         Form {
-                    // Appearance Section
             Section(header: Text("Appearance").font(.headline)) {
                 Picker("Theme", selection: $settings.appearanceMode) {
-                                ForEach(AppearanceMode.allCases, id: \.self) { mode in
-                                    Text(mode.displayName).tag(mode)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-            }
-            
-            Divider()
-            
-            // Storage Section
-            Section(header: Text("Storage").font(.headline)) {
-                Stepper(value: $settings.maxItems, in: 10...500, step: 10) {
-                    Text("Max Items: \(settings.maxItems)")
-                }
-            }
-            
-            Divider()
-            
-            // Update Section
-            Section(header: Text("Updates").font(.headline)) {
-                Toggle("Check for Updates Automatically", isOn: $settings.autoUpdateEnabled)
-                            
-                            if settings.autoUpdateEnabled {
-                    Stepper(value: $settings.checkUpdateInterval, in: 1...168, step: 1) {
-                        Text("Check every \(Int(settings.checkUpdateInterval)) hours")
+                    ForEach(AppearanceMode.allCases, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
                     }
+                }
+                .pickerStyle(.segmented)
+            }
+            
+            Divider()
+            
+            Section(header: Text("Storage").font(.headline)) {
+                HStack {
+                    Text("Max Clipboard Items")
+                    Spacer()
+                    TextField("", value: $settings.maxItems, formatter: NumberFormatter())
+                        .frame(width: 50)
+                }
+                Slider(value: Binding(
+                    get: { Double(settings.maxItems) },
+                    set: { settings.maxItems = Int($0) }
+                ), in: 10...500, step: 10)
+            }
+            
+            Divider()
+            
+            Section(header: Text("Monitoring").font(.headline)) {
+                HStack {
+                    Text("Update Interval (seconds)")
+                    Spacer()
+                    TextField("", value: $settings.updateInterval, formatter: NumberFormatter())
+                        .frame(width: 50)
+                }
+                Slider(value: $settings.updateInterval, in: 0.1...5.0, step: 0.1)
+            }
+        }
+        .padding()
+        .onDisappear {
+            settings.saveSettings()
+        }
+    }
+}
+
+// MARK: - Updates Settings Tab
+struct UpdatesSettingsView: View {
+    @ObservedObject var settings: AppSettings
+    
+    var body: some View {
+        Form {
+            Section(header: Text("Automatic Updates").font(.headline)) {
+                Toggle("Check for Updates Automatically", isOn: $settings.autoUpdateEnabled)
+                
+                if settings.autoUpdateEnabled {
                     Toggle("Install Updates Automatically", isOn: $settings.autoInstallUpdates)
+                    
+                    HStack {
+                        Text("Check Interval (hours)")
+                        Spacer()
+                        TextField("", value: $settings.checkUpdateInterval, formatter: NumberFormatter())
+                            .frame(width: 50)
+                    }
+                    Slider(value: $settings.checkUpdateInterval, in: 1...168, step: 1)
                 }
             }
         }
         .padding()
-        .frame(minWidth: 400, idealWidth: 450, minHeight: 250)
         .onDisappear {
-                                                settings.saveSettings()
-                                            }
+            settings.saveSettings()
+        }
+    }
+}
+
+// MARK: - About Settings Tab
+struct AboutSettingsView: View {
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "doc.on.clipboard.fill")
+                .font(.system(size: 80))
+                .foregroundColor(.blue)
+            
+            VStack(spacing: 8) {
+                Text("Clipboard Manager")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                Text("Version 1.1.1")
+                    .foregroundColor(.secondary)
+            }
+            
+            Text("A simple and powerful clipboard manager for macOS, built with Swift and SwiftUI.")
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 300)
+            
+            Spacer()
+            
+            Text("© 2024 Your Name Here")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding()
     }
 }
 

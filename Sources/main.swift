@@ -273,7 +273,7 @@ class AppUpdateManager: ObservableObject {
     @Published var isChecking = false
     
     private var updateTimer: Timer?
-    private let currentVersion = "1.1.5"
+    private let currentVersion = "1.1.6"
     private let updateCheckURL = "https://api.github.com/repos/salimmous/clipboard-manager/releases/latest"
     
     private init() {}
@@ -955,12 +955,25 @@ struct ClipboardPopupItemView: View {
     }
 }
 
+// MARK: - Settings Window Delegate
+class SettingsWindowDelegate: NSObject, NSWindowDelegate {
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        // Just close the window, don't terminate the app
+        sender.orderOut(nil)
+        return false // Don't actually close, just hide
+    }
+    
+    func windowWillClose(_ notification: Notification) {
+        // This prevents the window from actually closing and terminating the app
+    }
+}
 
 // MARK: - Traditional Menu Bar View
 struct MenuBarView: View {
     @EnvironmentObject var clipboardManager: ClipboardManager
     @StateObject private var appSettings = AppSettings()
     @StateObject private var updateManager = AppUpdateManager.shared
+    private static var settingsWindowDelegate = SettingsWindowDelegate()
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -1049,8 +1062,9 @@ struct MenuBarView: View {
             window.title = "Clipboard Manager Settings"
             
             // Configure window to not affect app lifecycle
-            window.isReleasedWhenClosed = true
+            window.isReleasedWhenClosed = false  // Keep the window in memory
             window.hidesOnDeactivate = false
+            window.delegate = Self.settingsWindowDelegate  // Use custom delegate
             
             // Set window level to normal (not floating)
             window.level = .normal

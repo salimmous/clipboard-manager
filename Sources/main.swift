@@ -273,7 +273,7 @@ class AppUpdateManager: ObservableObject {
     @Published var isChecking = false
     
     private var updateTimer: Timer?
-    private let currentVersion = "1.1.7"
+    private let currentVersion = "1.1.8"
     private let updateCheckURL = "https://api.github.com/repos/salimmous/clipboard-manager/releases/latest"
     
     private init() {}
@@ -663,27 +663,31 @@ class ClipboardManager: ObservableObject {
     func showWindow() {
         if clipboardWindow == nil {
             let contentView = ClipboardPopupView().environmentObject(self)
-            clipboardWindow = NSWindow(
+            let customWindow = ClipboardWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 380, height: 450),
                 styleMask: [.borderless],
                 backing: .buffered,
                 defer: false
             )
-            clipboardWindow?.contentView = NSHostingView(rootView: contentView)
-            clipboardWindow?.backgroundColor = .clear
-            clipboardWindow?.isOpaque = false
-            clipboardWindow?.hasShadow = true
-            clipboardWindow?.level = .floating
-            clipboardWindow?.isMovableByWindowBackground = true
-            clipboardWindow?.center()
+            customWindow.clipboardManager = self // Set the reference for key handling
+            customWindow.contentView = NSHostingView(rootView: contentView)
+            customWindow.backgroundColor = .clear
+            customWindow.isOpaque = false
+            customWindow.hasShadow = true
+            customWindow.level = .floating
+            customWindow.isMovableByWindowBackground = true
+            customWindow.center()
             
-            // Ensure window can receive key events
-            clipboardWindow?.acceptsMouseMovedEvents = true
+            // Ensure window can receive key events properly
+            customWindow.acceptsMouseMovedEvents = true
+            customWindow.isReleasedWhenClosed = false
             
             // Enable dragging
-            if let contentView = clipboardWindow?.contentView {
+            if let contentView = customWindow.contentView {
                 contentView.wantsLayer = true
             }
+            
+            clipboardWindow = customWindow
         }
         clipboardWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -691,6 +695,7 @@ class ClipboardManager: ObservableObject {
         // Ensure the window becomes the key window for keyboard input
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             self.clipboardWindow?.makeKey()
+            self.clipboardWindow?.orderFrontRegardless()
         }
         
         isWindowVisible = true
@@ -699,6 +704,35 @@ class ClipboardManager: ObservableObject {
     func hideWindow() {
         clipboardWindow?.orderOut(nil)
         isWindowVisible = false
+    }
+}
+
+// MARK: - Custom Window for Better Key Handling
+class ClipboardWindow: NSWindow {
+    var clipboardManager: ClipboardManager?
+    
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 { // Escape key
+            clipboardManager?.hideWindow()
+            return
+        }
+        
+        if event.keyCode == 36 { // Enter key
+            // Let the view handle Enter key for copying items
+            super.keyDown(with: event)
+            return
+        }
+        
+        // Pass other keys to the content view
+        super.keyDown(with: event)
+    }
+    
+    override var canBecomeKey: Bool {
+        return true
+    }
+    
+    override var acceptsFirstResponder: Bool {
+        return true
     }
 }
 

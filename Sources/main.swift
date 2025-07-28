@@ -1292,6 +1292,10 @@ struct UpdatesSettingsView: View {
 
 // MARK: - About Settings Tab
 struct AboutSettingsView: View {
+    private var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.1.6"
+    }
+    
     var body: some View {
         VStack(spacing: 24) {
             // App Icon with modern styling
@@ -1319,7 +1323,7 @@ struct AboutSettingsView: View {
                     .font(.system(size: 28, weight: .bold, design: .rounded))
                     .foregroundColor(.primary)
                 
-                Text("Version 1.1.3")
+                Text("Version \(appVersion)")
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.secondary)
                     .padding(.horizontal, 12)

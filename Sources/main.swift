@@ -268,7 +268,7 @@ class AppUpdateManager: ObservableObject {
     @Published var isChecking = false
     
     private var updateTimer: Timer?
-    private let currentVersion = "1.1.3"
+    private let currentVersion = "1.1.4"
     private let updateCheckURL = "https://api.github.com/repos/salimmous/clipboard-manager/releases/latest"
     
     private init() {}
@@ -1030,10 +1030,10 @@ struct MenuBarView: View {
     private func openSettingsWindow() {
         if let window = NSApp.windows.first(where: { $0.title == "Clipboard Manager Settings" }) {
             window.makeKeyAndOrderFront(nil)
-                    } else {
+        } else {
             let settingsView = SettingsView().environmentObject(appSettings)
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 480, height: 300),
+                contentRect: NSRect(x: 0, y: 0, width: 600, height: 400),
                 styleMask: [.titled, .closable, .miniaturizable, .resizable],
                 backing: .buffered,
                 defer: false
@@ -1068,23 +1068,24 @@ struct SettingsView: View {
     @StateObject private var settings = AppSettings()
     
     var body: some View {
-            TabView {
-                GeneralSettingsView(settings: settings)
-                    .tabItem {
+        TabView {
+            GeneralSettingsView(settings: settings)
+                .tabItem {
                     Label("General", systemImage: "gear")
-                    }
-                
+                }
+            
             UpdatesSettingsView(settings: settings)
-                    .tabItem {
+                .tabItem {
                     Label("Updates", systemImage: "arrow.down.circle")
-                    }
+                }
             
             AboutSettingsView()
                 .tabItem {
                     Label("About", systemImage: "info.circle")
-            }
+                }
         }
-        .frame(width: 500, height: 320)
+        .frame(width: 600, height: 400)
+        .background(Color(NSColor.windowBackgroundColor))
     }
 }
 
@@ -1093,33 +1094,83 @@ struct GeneralSettingsView: View {
     @ObservedObject var settings: AppSettings
     
     var body: some View {
-        Form {
-            Section {
-                Picker("Theme", selection: $settings.appearanceMode) {
-                    ForEach(AppearanceMode.allCases, id: \.self) { mode in
-                        Text(mode.displayName).tag(mode)
+        ScrollView {
+            VStack(spacing: 24) {
+                // Appearance Section
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "paintbrush.fill")
+                            .foregroundColor(.blue)
+                            .font(.system(size: 16, weight: .medium))
+                        Text("Appearance")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.primary)
+                        Spacer()
+                    }
+                    
+                    VStack(spacing: 8) {
+                        Picker("Theme", selection: $settings.appearanceMode) {
+                            ForEach(AppearanceMode.allCases, id: \.self) { mode in
+                                Text(mode.displayName).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
                     }
                 }
-                .pickerStyle(.segmented)
+                .padding(20)
+                .background(Color(NSColor.controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
                 
-                HStack {
-                    Text("Max Clipboard Items")
-                    Spacer()
-                    TextField("", value: $settings.maxItems, formatter: NumberFormatter())
-                        .frame(width: 80)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                // Performance Section
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "speedometer")
+                            .foregroundColor(.green)
+                            .font(.system(size: 16, weight: .medium))
+                        Text("Performance")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.primary)
+                        Spacer()
+                    }
+                    
+                    VStack(spacing: 16) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Max Clipboard Items")
+                                    .font(.system(size: 14, weight: .medium))
+                                Text("Maximum number of items to store")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            TextField("", value: $settings.maxItems, formatter: NumberFormatter())
+                                .frame(width: 80)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                        }
+                        
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Update Interval")
+                                    .font(.system(size: 14, weight: .medium))
+                                Text("How often to check clipboard (seconds)")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            TextField("", value: $settings.updateInterval, formatter: NumberFormatter())
+                                .frame(width: 80)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                        }
+                    }
                 }
+                .padding(20)
+                .background(Color(NSColor.controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
                 
-                HStack {
-                    Text("Update Interval (seconds)")
-                    Spacer()
-                    TextField("", value: $settings.updateInterval, formatter: NumberFormatter())
-                        .frame(width: 80)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                }
+                Spacer()
             }
+            .padding(20)
         }
-        .padding()
         .onDisappear {
             settings.saveSettings()
         }
@@ -1131,24 +1182,81 @@ struct UpdatesSettingsView: View {
     @ObservedObject var settings: AppSettings
     
     var body: some View {
-        Form {
-            Section {
-                Toggle("Check for Updates Automatically", isOn: $settings.autoUpdateEnabled)
-                
-                if settings.autoUpdateEnabled {
-                    Toggle("Install Updates Automatically", isOn: $settings.autoInstallUpdates)
-                    
+        ScrollView {
+            VStack(spacing: 24) {
+                // Auto Updates Section
+                VStack(alignment: .leading, spacing: 12) {
                     HStack {
-                        Text("Check Interval (hours)")
+                        Image(systemName: "arrow.down.circle.fill")
+                            .foregroundColor(.orange)
+                            .font(.system(size: 16, weight: .medium))
+                        Text("Automatic Updates")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.primary)
                         Spacer()
-                        TextField("", value: $settings.checkUpdateInterval, formatter: NumberFormatter())
-                            .frame(width: 80)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                    }
+                    
+                    VStack(spacing: 16) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Check for Updates Automatically")
+                                    .font(.system(size: 14, weight: .medium))
+                                Text("Automatically check for new versions")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Toggle("", isOn: $settings.autoUpdateEnabled)
+                                .toggleStyle(.switch)
+                        }
+                        
+                        if settings.autoUpdateEnabled {
+                            VStack(spacing: 16) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Install Updates Automatically")
+                                            .font(.system(size: 14, weight: .medium))
+                                        Text("Install updates without asking")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.secondary)
+                                    }
+                                    Spacer()
+                                    Toggle("", isOn: $settings.autoInstallUpdates)
+                                        .toggleStyle(.switch)
+                                }
+                                
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Check Interval")
+                                            .font(.system(size: 14, weight: .medium))
+                                        Text("How often to check for updates (hours)")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.secondary)
+                                    }
+                                    Spacer()
+                                    TextField("", value: $settings.checkUpdateInterval, formatter: NumberFormatter())
+                                        .frame(width: 80)
+                                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                                }
+                            }
+                            .padding(.leading, 16)
+                            .overlay(
+                                Rectangle()
+                                    .frame(width: 2)
+                                    .foregroundColor(.orange.opacity(0.3)),
+                                alignment: .leading
+                            )
+                        }
                     }
                 }
+                .padding(20)
+                .background(Color(NSColor.controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                
+                Spacer()
             }
+            .padding(20)
         }
-        .padding()
         .onDisappear {
             settings.saveSettings()
         }
@@ -1158,30 +1266,81 @@ struct UpdatesSettingsView: View {
 // MARK: - About Settings Tab
 struct AboutSettingsView: View {
     var body: some View {
-        VStack(spacing: 20) {
-            Image(nsImage: NSImage(named: "AppIcon") ?? NSImage())
-                .resizable()
-                .frame(width: 80, height: 80)
-            
-            VStack(spacing: 8) {
-                Text("Clipboard Manager")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                Text("Version 1.1.2")
-                    .foregroundColor(.secondary)
+        VStack(spacing: 24) {
+            // App Icon with modern styling
+            VStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient(
+                            gradient: Gradient(colors: [Color.blue.opacity(0.1), Color.purple.opacity(0.1)]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                        .frame(width: 100, height: 100)
+                    
+                    Image(nsImage: NSImage(named: "AppIcon") ?? NSImage())
+                        .resizable()
+                        .frame(width: 80, height: 80)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+                }
             }
             
-            Text("A simple and powerful clipboard manager for macOS, built with Swift and SwiftUI.")
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 300)
+            // App Info with modern typography
+            VStack(spacing: 12) {
+                Text("Clipboard Manager")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundColor(.primary)
+                
+                Text("Version 1.1.3")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .background(Color.secondary.opacity(0.1))
+                    .clipShape(Capsule())
+            }
+            
+            // Description with better formatting
+            VStack(spacing: 8) {
+                Text("A simple and powerful clipboard manager for macOS")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.center)
+                
+                Text("Built with Swift and SwiftUI")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: 320)
             
             Spacer()
             
-            Text("© 2025 Your Name Here")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            // Footer with modern styling
+            VStack(spacing: 8) {
+                Text("clipboardgenius.app")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.blue)
+                
+                Text("© 2025 clipboardgenius.app")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.bottom, 8)
         }
-        .padding()
+        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color(NSColor.controlBackgroundColor),
+                    Color(NSColor.controlBackgroundColor).opacity(0.95)
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
     }
 }
 

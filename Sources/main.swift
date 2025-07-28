@@ -179,12 +179,50 @@ enum AppearanceMode: String, CaseIterable, Codable {
     case system = "system"
     case light = "light"
     case dark = "dark"
+    case blue = "blue"
+    case purple = "purple"
+    case green = "green"
+    case orange = "orange"
     
     var displayName: String {
         switch self {
         case .system: return "System"
         case .light: return "Light"
         case .dark: return "Dark"
+        case .blue: return "Ocean Blue"
+        case .purple: return "Purple Haze"
+        case .green: return "Forest Green"
+        case .orange: return "Sunset Orange"
+        }
+    }
+    
+    var accentColor: Color {
+        switch self {
+        case .system, .light, .dark:
+            return .accentColor
+        case .blue:
+            return .blue
+        case .purple:
+            return .purple
+        case .green:
+            return .green
+        case .orange:
+            return .orange
+        }
+    }
+    
+    var backgroundGradient: LinearGradient {
+        switch self {
+        case .system, .light, .dark:
+            return LinearGradient(colors: [Color(NSColor.controlBackgroundColor)], startPoint: .top, endPoint: .bottom)
+        case .blue:
+            return LinearGradient(colors: [Color.blue.opacity(0.1), Color.cyan.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .purple:
+            return LinearGradient(colors: [Color.purple.opacity(0.1), Color.pink.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .green:
+            return LinearGradient(colors: [Color.green.opacity(0.1), Color.mint.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .orange:
+            return LinearGradient(colors: [Color.orange.opacity(0.1), Color.yellow.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
     }
 }
@@ -196,6 +234,8 @@ class AppSettings: ObservableObject {
     @Published var autoUpdateEnabled: Bool = true
     @Published var checkUpdateInterval: Double = 24.0 // in hours
     @Published var autoInstallUpdates: Bool = false // auto-install updates
+    @Published var compactMode: Bool = false
+    @Published var showNotifications: Bool = true
     
     init() {
         loadSettings()
@@ -222,6 +262,8 @@ class AppSettings: ObservableObject {
         
         self.autoUpdateEnabled = UserDefaults.standard.bool(forKey: "AutoUpdateEnabled")
         self.autoInstallUpdates = UserDefaults.standard.bool(forKey: "AutoInstallUpdates")
+        self.compactMode = UserDefaults.standard.bool(forKey: "CompactMode")
+        self.showNotifications = UserDefaults.standard.bool(forKey: "ShowNotifications")
         
         let savedCheckInterval = UserDefaults.standard.double(forKey: "CheckUpdateInterval")
         if savedCheckInterval > 0 {
@@ -235,6 +277,8 @@ class AppSettings: ObservableObject {
         UserDefaults.standard.set(updateInterval, forKey: "UpdateInterval")
         UserDefaults.standard.set(autoUpdateEnabled, forKey: "AutoUpdateEnabled")
         UserDefaults.standard.set(autoInstallUpdates, forKey: "AutoInstallUpdates")
+        UserDefaults.standard.set(compactMode, forKey: "CompactMode")
+        UserDefaults.standard.set(showNotifications, forKey: "ShowNotifications")
         UserDefaults.standard.set(checkUpdateInterval, forKey: "CheckUpdateInterval")
         applyAppearanceMode()
         
@@ -254,9 +298,9 @@ class AppSettings: ObservableObject {
             switch self.appearanceMode {
             case .system:
                 NSApp.appearance = nil
-            case .light:
+            case .light, .blue, .green, .orange:
                 NSApp.appearance = NSAppearance(named: .aqua)
-            case .dark:
+            case .dark, .purple:
                 NSApp.appearance = NSAppearance(named: .darkAqua)
             }
         }
@@ -273,7 +317,7 @@ class AppUpdateManager: ObservableObject {
     @Published var isChecking = false
     
     private var updateTimer: Timer?
-    private let currentVersion = "1.1.9"
+    private let currentVersion = "1.1.10"
     private let updateCheckURL = "https://api.github.com/repos/salimmous/clipboard-manager/releases/latest"
     
     private init() {}
@@ -532,16 +576,68 @@ extension String {
 }
 
 // MARK: - Clipboard Item Model
+enum ClipboardItemType: String, Codable {
+    case text = "text"
+    case image = "image"
+    case url = "url"
+}
+
 struct ClipboardItem: Identifiable, Codable, Hashable {
     let id: UUID
     let content: String
+    let type: ClipboardItemType
     var isPinned: Bool
+    let timestamp: Date
+    var imageData: Data?
     
-    // Simplified init
+    // Simplified init for text
     init(content: String, isPinned: Bool = false) {
         self.id = UUID()
         self.content = content
+        self.type = .text
         self.isPinned = isPinned
+        self.timestamp = Date()
+        self.imageData = nil
+    }
+    
+    // Init for images
+    init(imageData: Data, isPinned: Bool = false) {
+        self.id = UUID()
+        self.content = "Image (\(ByteCountFormatter.string(fromByteCount: Int64(imageData.count), countStyle: .file)))"
+        self.type = .image
+        self.isPinned = isPinned
+        self.timestamp = Date()
+        self.imageData = imageData
+    }
+    
+    // Init for URLs
+    init(url: String, isPinned: Bool = false) {
+        self.id = UUID()
+        self.content = url
+        self.type = .url
+        self.isPinned = isPinned
+        self.timestamp = Date()
+        self.imageData = nil
+    }
+    
+    var displayContent: String {
+        switch type {
+        case .text, .url:
+            return content
+        case .image:
+            return content // Already formatted in init
+        }
+    }
+    
+    var typeIcon: String {
+        switch type {
+        case .text:
+            return "doc.text"
+        case .image:
+            return "photo"
+        case .url:
+            return "link"
+        }
     }
 }
 
@@ -586,22 +682,72 @@ class ClipboardManager: ObservableObject {
     private func checkClipboard() {
         if NSPasteboard.general.changeCount != lastChangeCount {
             lastChangeCount = NSPasteboard.general.changeCount
-            if let string = NSPasteboard.general.string(forType: .string), !string.isEmpty {
-                addItem(content: string)
+            
+            let pasteboard = NSPasteboard.general
+            
+            // Check for images first
+            if let imageData = pasteboard.data(forType: .tiff) ?? pasteboard.data(forType: .png) {
+                addImageItem(imageData: imageData)
+            }
+            // Check for text content
+            else if let string = pasteboard.string(forType: .string), !string.isEmpty {
+                // Detect if it's a URL
+                if isValidURL(string) {
+                    addURLItem(url: string)
+                } else {
+                    addTextItem(content: string)
+                }
             }
         }
     }
     
-    func addItem(content: String) {
+    private func addTextItem(content: String) {
         let trimmedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        items.removeAll { $0.content == trimmedContent }
-        items.insert(ClipboardItem(content: trimmedContent), at: 0)
+        items.removeAll { $0.content == trimmedContent && $0.type == .text }
+        let newItem = ClipboardItem(content: trimmedContent)
+        items.insert(newItem, at: 0)
         
         if items.count > maxItems {
             items = Array(items.prefix(maxItems))
         }
         sortItems()
         saveItems()
+        showSmartNotification(for: newItem)
+    }
+    
+    private func addImageItem(imageData: Data) {
+        let newItem = ClipboardItem(imageData: imageData)
+        items.insert(newItem, at: 0)
+        
+        if items.count > maxItems {
+            items = Array(items.prefix(maxItems))
+        }
+        sortItems()
+        saveItems()
+        showSmartNotification(for: newItem)
+    }
+    
+    private func addURLItem(url: String) {
+        let trimmedURL = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        items.removeAll { $0.content == trimmedURL && $0.type == .url }
+        let newItem = ClipboardItem(url: trimmedURL)
+        items.insert(newItem, at: 0)
+        
+        if items.count > maxItems {
+            items = Array(items.prefix(maxItems))
+        }
+        sortItems()
+        saveItems()
+        showSmartNotification(for: newItem)
+    }
+    
+    private func isValidURL(_ string: String) -> Bool {
+        let urlPattern = "^(https?://)|(www\\.)|(\\w+\\.(com|org|net|edu|gov|mil|int|co|uk|de|fr|jp|cn|au|ca|br|in|ru|it|es|nl|se|no|dk|fi|pl|be|ch|at|cz|hu|pt|gr|tr|il|za|mx|ar|cl|pe|ve|uy|py|bo|ec|co|cr|pa|gt|hn|sv|ni|cu|do|ht|jm|tt|bb|gd|lc|vc|ag|kn|dm|bs|bz|gy|sr|fk|gl|fo|is|ie|mt|cy|lu|li|ad|mc|sm|va|si|sk|hr|ba|mk|al|bg|ro|md|ua|by|lt|lv|ee|fi|se|no|dk|is|ie|gb|fr|es|pt|it|ch|at|de|nl|be|lu|pl|cz|sk|hu|si|hr|ba|rs|me|mk|al|bg|ro|md|ua|by|lt|lv|ee)).*$"
+        return string.range(of: urlPattern, options: .regularExpression) != nil
+    }
+    
+    func addItem(content: String) {
+        addTextItem(content: content)
     }
 
     func deleteAllItems() {
@@ -629,7 +775,16 @@ class ClipboardManager: ObservableObject {
     func copyToClipboard(_ item: ClipboardItem) {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString(item.content, forType: .string)
+        
+        switch item.type {
+        case .text, .url:
+            pasteboard.setString(item.content, forType: .string)
+        case .image:
+            if let imageData = item.imageData {
+                pasteboard.setData(imageData, forType: .tiff)
+            }
+        }
+        
         lastChangeCount = pasteboard.changeCount
     }
     
@@ -660,10 +815,15 @@ class ClipboardManager: ObservableObject {
     }
     
     func showWindow() {
+        let settings = AppSettings()
+        let windowSize = settings.compactMode ? 
+            CGSize(width: 300, height: 350) : 
+            CGSize(width: 380, height: 450)
+            
         if clipboardWindow == nil {
             let contentView = ClipboardPopupView().environmentObject(self)
             let customWindow = ClipboardWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 380, height: 450),
+                contentRect: NSRect(x: 0, y: 0, width: windowSize.width, height: windowSize.height),
                 styleMask: [.borderless],
                 backing: .buffered,
                 defer: false
@@ -704,6 +864,33 @@ class ClipboardManager: ObservableObject {
         clipboardWindow?.orderOut(nil)
         isWindowVisible = false
     }
+    
+    private func showSmartNotification(for item: ClipboardItem) {
+        let settings = AppSettings()
+        guard settings.showNotifications else { return }
+        
+        let notification = NSUserNotification()
+        
+        switch item.type {
+        case .text:
+            notification.title = "Text Copied"
+            notification.informativeText = String(item.content.prefix(50)) + (item.content.count > 50 ? "..." : "")
+        case .image:
+            notification.title = "Image Copied"
+            notification.informativeText = item.content
+        case .url:
+            notification.title = "URL Copied"
+            notification.informativeText = item.content
+        }
+        
+        notification.soundName = nil // Silent notification
+        NSUserNotificationCenter.default.deliver(notification)
+        
+        // Auto-remove after 2 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            NSUserNotificationCenter.default.removeDeliveredNotification(notification)
+        }
+    }
 }
 
 // MARK: - Custom Window for Better Key Handling
@@ -740,14 +927,50 @@ struct ClipboardPopupView: View {
     @EnvironmentObject var clipboardManager: ClipboardManager
     @State private var selectedIndex: Int? = 0
     @State private var searchText = ""
+    @State private var selectedContentType: ClipboardItemType? = nil
+    @State private var showingFilters = false
+    @State private var dateFilter: DateFilter = .all
+    @StateObject private var appSettings = AppSettings()
     private static var settingsDelegate = SettingsWindowDelegate()
     
+    enum DateFilter: String, CaseIterable {
+        case all = "All Time"
+        case today = "Today"
+        case yesterday = "Yesterday"
+        case thisWeek = "This Week"
+        case thisMonth = "This Month"
+    }
+    
     var filteredItems: [ClipboardItem] {
-        if searchText.isEmpty {
-            return clipboardManager.items
-        } else {
-            return clipboardManager.items.filter { $0.content.localizedCaseInsensitiveContains(searchText) }
+        var items = clipboardManager.items
+        
+        // Filter by content type
+        if let contentType = selectedContentType {
+            items = items.filter { $0.type == contentType }
         }
+        
+        // Filter by date
+        switch dateFilter {
+        case .all:
+            break
+        case .today:
+            items = items.filter { Calendar.current.isDateInToday($0.timestamp) }
+        case .yesterday:
+            items = items.filter { Calendar.current.isDateInYesterday($0.timestamp) }
+        case .thisWeek:
+            let weekStart = Calendar.current.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
+            items = items.filter { $0.timestamp >= weekStart }
+        case .thisMonth:
+            let monthStart = Calendar.current.dateInterval(of: .month, for: Date())?.start ?? Date()
+            items = items.filter { $0.timestamp >= monthStart }
+        }
+        
+        // Filter by search text
+        if !searchText.isEmpty {
+            items = items.filter { $0.displayContent.localizedCaseInsensitiveContains(searchText) }
+        }
+        
+        return items
     }
     
     var body: some View {
@@ -766,6 +989,16 @@ struct ClipboardPopupView: View {
                 }
                 .font(.system(size: 14))
                 .foregroundColor(.blue)
+                
+                Button(action: {
+                    showingFilters.toggle()
+                }) {
+                    Image(systemName: showingFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(hasActiveFilters ? .blue : .secondary)
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 8)
                 
                 Button(action: {
                     clipboardManager.hideWindow() // Hide clipboard window first
@@ -795,24 +1028,108 @@ struct ClipboardPopupView: View {
             .padding(.bottom, 8)
             .background(DragAreaView())
             
-            // Search bar
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                TextField("Search clipboard...", text: $searchText)
-                    .textFieldStyle(.plain)
-                if !searchText.isEmpty {
-                    Button(action: { searchText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
+            // Search and Filters Section
+            VStack(spacing: 8) {
+                // Search bar
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.secondary)
+                    TextField("Search clipboard...", text: $searchText)
+                        .textFieldStyle(.plain)
+                    if !searchText.isEmpty {
+                        Button(action: { searchText = "" }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color(NSColor.textBackgroundColor).opacity(0.5))
+                .cornerRadius(8)
+                
+                // Filters (when shown)
+                if showingFilters {
+                    VStack(spacing: 8) {
+                        // Content Type Filter
+                        HStack {
+                            Text("Type:")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    FilterChip(
+                                        title: "All",
+                                        isSelected: selectedContentType == nil,
+                                        action: { selectedContentType = nil }
+                                    )
+                                    
+                                    FilterChip(
+                                        title: "Text",
+                                        isSelected: selectedContentType == .text,
+                                        action: { selectedContentType = .text }
+                                    )
+                                    
+                                    FilterChip(
+                                        title: "Images",
+                                        isSelected: selectedContentType == .image,
+                                        action: { selectedContentType = .image }
+                                    )
+                                    
+                                    FilterChip(
+                                        title: "URLs",
+                                        isSelected: selectedContentType == .url,
+                                        action: { selectedContentType = .url }
+                                    )
+                                }
+                                .padding(.horizontal, 4)
+                            }
+                        }
+                        
+                        // Date Filter
+                        HStack {
+                            Text("When:")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(DateFilter.allCases, id: \.self) { filter in
+                                        FilterChip(
+                                            title: filter.rawValue,
+                                            isSelected: dateFilter == filter,
+                                            action: { dateFilter = filter }
+                                        )
+                                    }
+                                }
+                                .padding(.horizontal, 4)
+                            }
+                        }
+                        
+                        // Results count
+                        HStack {
+                            Text("\(filteredItems.count) items")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            Spacer()
+                            
+                            if hasActiveFilters {
+                                Button("Clear Filters") {
+                                    selectedContentType = nil
+                                    dateFilter = .all
+                                    searchText = ""
+                                }
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 4)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color(NSColor.textBackgroundColor).opacity(0.5))
-            .cornerRadius(8)
             .padding(.horizontal, 16)
             .padding(.bottom, 12)
 
@@ -837,6 +1154,21 @@ struct ClipboardPopupView: View {
                             }
                         }
                     }
+                    
+                    if filteredItems.isEmpty {
+                        VStack(spacing: 12) {
+                            Image(systemName: "doc.text.magnifyingglass")
+                                .font(.system(size: 40))
+                                .foregroundColor(.secondary.opacity(0.5))
+                            
+                            Text(emptyStateMessage)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 40)
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 16)
@@ -844,9 +1176,10 @@ struct ClipboardPopupView: View {
         }
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.controlBackgroundColor))
+                .fill(appSettings.appearanceMode.backgroundGradient)
                 .shadow(color: Color.black.opacity(0.15), radius: 20, x: 0, y: 8)
         )
+        .accentColor(appSettings.appearanceMode.accentColor)
         .preferredColorScheme(nil) // Adapts to system appearance
         .onAppear {
             if !filteredItems.isEmpty {
@@ -858,6 +1191,18 @@ struct ClipboardPopupView: View {
         }
         .onKeyDown { event in
             handleKeyDown(event)
+        }
+    }
+    
+    private var hasActiveFilters: Bool {
+        selectedContentType != nil || dateFilter != .all || !searchText.isEmpty
+    }
+    
+    private var emptyStateMessage: String {
+        if hasActiveFilters {
+            return "No items match your current filters.\nTry adjusting your search criteria."
+        } else {
+            return "No clipboard items yet.\nCopy something to get started!"
         }
     }
     
@@ -926,6 +1271,113 @@ struct ClipboardPopupView: View {
     }
 }
 
+// MARK: - Quick Actions
+enum QuickAction {
+    case uppercase
+    case lowercase
+    case capitalizeWords
+    case removeSpaces
+    case addQuotes
+    case base64Encode
+    case base64Decode
+    case urlEncode
+    case urlDecode
+    case copyEmail
+    case copyPhone
+    case qrCode
+    
+    var title: String {
+        switch self {
+        case .uppercase: return "UPPERCASE"
+        case .lowercase: return "lowercase"
+        case .capitalizeWords: return "Capitalize Words"
+        case .removeSpaces: return "Remove Spaces"
+        case .addQuotes: return "Add Quotes"
+        case .base64Encode: return "Base64 Encode"
+        case .base64Decode: return "Base64 Decode"
+        case .urlEncode: return "URL Encode"
+        case .urlDecode: return "URL Decode"
+        case .copyEmail: return "Copy as Email"
+        case .copyPhone: return "Copy as Phone"
+        case .qrCode: return "Generate QR Code"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .uppercase, .lowercase, .capitalizeWords: return "textformat"
+        case .removeSpaces: return "minus.square"
+        case .addQuotes: return "quote.bubble"
+        case .base64Encode, .base64Decode: return "lock.shield"
+        case .urlEncode, .urlDecode: return "link.badge.plus"
+        case .copyEmail: return "envelope"
+        case .copyPhone: return "phone"
+        case .qrCode: return "qrcode"
+        }
+    }
+    
+    func apply(to text: String) -> String {
+        switch self {
+        case .uppercase:
+            return text.uppercased()
+        case .lowercase:
+            return text.lowercased()
+        case .capitalizeWords:
+            return text.capitalized
+        case .removeSpaces:
+            return text.replacingOccurrences(of: " ", with: "")
+        case .addQuotes:
+            return "\"\(text)\""
+        case .base64Encode:
+            return Data(text.utf8).base64EncodedString()
+        case .base64Decode:
+            guard let data = Data(base64Encoded: text) else { return text }
+            return String(data: data, encoding: .utf8) ?? text
+        case .urlEncode:
+            return text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? text
+        case .urlDecode:
+            return text.removingPercentEncoding ?? text
+        case .copyEmail:
+            return "mailto:\(text)"
+        case .copyPhone:
+            return "tel:\(text.replacingOccurrences(of: " ", with: ""))"
+        case .qrCode:
+            return text // QR code generation would need additional implementation
+        }
+    }
+    
+    static func availableActions(for item: ClipboardItem) -> [QuickAction] {
+        switch item.type {
+        case .text:
+            return [.uppercase, .lowercase, .capitalizeWords, .removeSpaces, .addQuotes, .base64Encode, .urlEncode]
+        case .url:
+            return [.urlDecode, .qrCode]
+        case .image:
+            return [.qrCode]
+        }
+    }
+}
+
+// MARK: - Filter Chip Component
+struct FilterChip: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(isSelected ? Color.accentColor : Color.secondary.opacity(0.2))
+                .foregroundColor(isSelected ? .white : .primary)
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - Clipboard Popup Item View (MODERN DESIGN)
 struct ClipboardPopupItemView: View {
     let item: ClipboardItem
@@ -934,6 +1386,24 @@ struct ClipboardPopupItemView: View {
     
     var body: some View {
         HStack(spacing: 12) {
+            // Content type icon and preview
+            VStack {
+                if item.type == .image, let imageData = item.imageData, let nsImage = NSImage(data: imageData) {
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 40, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                } else {
+                    Image(systemName: item.typeIcon)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(iconColor)
+                        .frame(width: 40, height: 40)
+                        .background(iconColor.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+            }
+            
             // Pin indicator
             if item.isPinned {
                 Image(systemName: "pin.fill")
@@ -943,16 +1413,41 @@ struct ClipboardPopupItemView: View {
             
             // Content
             VStack(alignment: .leading, spacing: 4) {
-                Text(item.content)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.primary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                HStack {
+                    Text(item.displayContent)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.primary)
+                        .lineLimit(item.type == .image ? 1 : 2)
+                        .multilineTextAlignment(.leading)
+                    
+                    if item.type == .url {
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.system(size: 12))
+                            .foregroundColor(.blue)
+                    }
+                }
                 
-                Text(item.isPinned ? "Pinned" : "Just now")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                HStack {
+                    Text(timeAgo)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    if item.isPinned {
+                        Text("• Pinned")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                    
+                    Spacer()
+                    
+                    Text(item.type.rawValue.capitalized)
+                        .font(.caption)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(iconColor.opacity(0.15))
+                        .foregroundColor(iconColor)
+                        .clipShape(Capsule())
+                }
             }
             
             Spacer()
@@ -960,27 +1455,57 @@ struct ClipboardPopupItemView: View {
             // Action buttons
             HStack(spacing: 4) {
                 Menu {
-                    Button("Share to WhatsApp") {
-                        shareToWhatsApp(item.content)
-                    }
-                    
-                    Button("Share to Other Apps") {
-                        shareToOtherApps(item.content)
-                    }
-                    
-                    if isURL(item.content) {
-                        Button("Open in Browser") {
-                            openInBrowser(item.content)
+                    // Quick Actions Section
+                    let quickActions = QuickAction.availableActions(for: item)
+                    if !quickActions.isEmpty {
+                        Section("Quick Actions") {
+                            ForEach(quickActions, id: \.title) { action in
+                                Button(action.title) {
+                                    let transformedText = action.apply(to: item.content)
+                                    let newItem = ClipboardItem(content: transformedText)
+                                    clipboardManager.addItem(content: transformedText)
+                                    clipboardManager.copyToClipboard(newItem)
+                                }
+                                Label(action.title, systemImage: action.icon)
+                            }
                         }
+                        
+                        Divider()
+                    }
+                    
+                    // Standard Actions Section
+                    Section("Actions") {
+                        if item.type == .url {
+                            Button("Open in Browser") {
+                                openInBrowser(item.content)
+                            }
+                            Label("Open in Browser", systemImage: "safari")
+                        }
+                        
+                        Button("Share to WhatsApp") {
+                            shareToWhatsApp(item.content)
+                        }
+                        Label("Share to WhatsApp", systemImage: "message")
+                        
+                        Button("Share to Other Apps") {
+                            shareToOtherApps(item)
+                        }
+                        Label("Share to Other Apps", systemImage: "square.and.arrow.up")
                     }
                     
                     Divider()
                     
-                    Button("Copy") {
-                                 let pasteboard = NSPasteboard.general
-                                 pasteboard.clearContents()
-                                 pasteboard.setString(item.content, forType: .string)
-                             }
+                    Section("Clipboard") {
+                        Button("Copy") {
+                            clipboardManager.copyToClipboard(item)
+                        }
+                        Label("Copy", systemImage: "doc.on.doc")
+                        
+                        Button("Delete") {
+                            clipboardManager.removeItem(item)
+                        }
+                        Label("Delete", systemImage: "trash")
+                    }
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 14, weight: .medium))
@@ -1011,6 +1536,23 @@ struct ClipboardPopupItemView: View {
         )
     }
     
+    private var iconColor: Color {
+        switch item.type {
+        case .text:
+            return .blue
+        case .image:
+            return .green
+        case .url:
+            return .purple
+        }
+    }
+    
+    private var timeAgo: String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: item.timestamp, relativeTo: Date())
+    }
+    
     private func shareToWhatsApp(_ text: String) {
         let encodedText = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let whatsappURL = "whatsapp://send?text=\(encodedText)"
@@ -1020,8 +1562,19 @@ struct ClipboardPopupItemView: View {
         }
     }
     
-    private func shareToOtherApps(_ text: String) {
-        let sharingPicker = NSSharingServicePicker(items: [text])
+    private func shareToOtherApps(_ item: ClipboardItem) {
+        var itemsToShare: [Any] = []
+        
+        switch item.type {
+        case .text, .url:
+            itemsToShare = [item.content]
+        case .image:
+            if let imageData = item.imageData, let image = NSImage(data: imageData) {
+                itemsToShare = [image]
+            }
+        }
+        
+        let sharingPicker = NSSharingServicePicker(items: itemsToShare)
         if let view = NSApp.keyWindow?.contentView {
             sharingPicker.show(relativeTo: .zero, of: view, preferredEdge: .minY)
         }
@@ -1036,12 +1589,6 @@ struct ClipboardPopupItemView: View {
         if let url = URL(string: finalURL) {
             NSWorkspace.shared.open(url)
         }
-    }
-    
-    private func isURL(_ string: String) -> Bool {
-        let urlPattern = "^(https?://)|(www\\.)|(\\w+\\.(com|org|net|edu|gov|mil|int|co|uk|de|fr|jp|cn|au|ca|br|in|ru|it|es|nl|se|no|dk|fi|pl|be|ch|at|cz|hu|pt|gr|tr|il|za|mx|ar|cl|pe|ve|uy|py|bo|ec|co|cr|pa|gt|hn|sv|ni|cu|do|ht|jm|tt|bb|gd|lc|vc|ag|kn|dm|bs|bz|gy|sr|fk|gl|fo|is|ie|mt|cy|lu|li|ad|mc|sm|va|si|sk|hr|ba|mk|al|bg|ro|md|ua|by|lt|lv|ee|fi|se|no|dk|is|ie|gb|fr|es|pt|it|ch|at|de|nl|be|lu|pl|cz|sk|hu|si|hr|ba|rs|me|mk|al|bg|ro|md|ua|by|lt|lv|ee)).*$"
-        
-        return string.range(of: urlPattern, options: .regularExpression) != nil
     }
 }
 
@@ -1241,6 +1788,50 @@ struct GeneralSettingsView: View {
                             }
                         }
                         .pickerStyle(.segmented)
+                        
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Compact Mode")
+                                    .font(.system(size: 14, weight: .medium))
+                                Text("Smaller, minimal interface")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Toggle("", isOn: $settings.compactMode)
+                                .toggleStyle(.switch)
+                        }
+                    }
+                }
+                .padding(20)
+                .background(Color(NSColor.controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                
+                // Notifications Section
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "bell.fill")
+                            .foregroundColor(.orange)
+                            .font(.system(size: 16, weight: .medium))
+                        Text("Notifications")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.primary)
+                        Spacer()
+                    }
+                    
+                    VStack(spacing: 16) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Smart Notifications")
+                                    .font(.system(size: 14, weight: .medium))
+                                Text("Show notifications when items are copied")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Toggle("", isOn: $settings.showNotifications)
+                                .toggleStyle(.switch)
+                        }
                     }
                 }
                 .padding(20)

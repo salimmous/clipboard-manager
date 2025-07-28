@@ -45,6 +45,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         unregisterGlobalHotkey()
     }
     
+    // Prevent app from terminating when last window is closed
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        return false
+    }
+    
     private func registerGlobalHotkey() {
         let hotKeyID = EventHotKeyID(signature: "CBMG".fourCharCodeValue, id: 1)
         let keyCode: UInt32 = 7 // X key
@@ -268,7 +273,7 @@ class AppUpdateManager: ObservableObject {
     @Published var isChecking = false
     
     private var updateTimer: Timer?
-    private let currentVersion = "1.1.4"
+    private let currentVersion = "1.1.5"
     private let updateCheckURL = "https://api.github.com/repos/salimmous/clipboard-manager/releases/latest"
     
     private init() {}
@@ -1042,6 +1047,14 @@ struct MenuBarView: View {
             window.setFrameAutosaveName("Settings")
             window.contentView = NSHostingView(rootView: settingsView)
             window.title = "Clipboard Manager Settings"
+            
+            // Configure window to not affect app lifecycle
+            window.isReleasedWhenClosed = true
+            window.hidesOnDeactivate = false
+            
+            // Set window level to normal (not floating)
+            window.level = .normal
+            
             window.makeKeyAndOrderFront(nil)
         }
     }

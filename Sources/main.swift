@@ -268,7 +268,7 @@ class AppUpdateManager: ObservableObject {
     @Published var isChecking = false
     
     private var updateTimer: Timer?
-    private let currentVersion = "1.1.2"
+    private let currentVersion = "1.1.3"
     private let updateCheckURL = "https://api.github.com/repos/salimmous/clipboard-manager/releases/latest"
     
     private init() {}
@@ -1000,7 +1000,7 @@ struct MenuBarView: View {
             // Main Actions
             Button("Show All") {
                 clipboardManager.showWindow()
-            }
+                    }
             
             Button("Clear All") {
                 clipboardManager.deleteAllItems()
@@ -1015,17 +1015,17 @@ struct MenuBarView: View {
             
             Button("Settings...") {
                 openSettingsWindow()
-            }
+                    }
             
             Divider()
             
             // Quit
             Button("Quit Clipboard Manager") {
                 NSApplication.shared.terminate(nil)
+                }
             }
-        }
         .padding(6)
-    }
+        }
     
     private func openSettingsWindow() {
         if let window = NSApp.windows.first(where: { $0.title == "Clipboard Manager Settings" }) {
@@ -1068,21 +1068,21 @@ struct SettingsView: View {
     @StateObject private var settings = AppSettings()
     
     var body: some View {
-        TabView {
-            GeneralSettingsView(settings: settings)
-                .tabItem {
+            TabView {
+                GeneralSettingsView(settings: settings)
+                    .tabItem {
                     Label("General", systemImage: "gear")
-                }
-            
+                    }
+                
             UpdatesSettingsView(settings: settings)
-                .tabItem {
+                    .tabItem {
                     Label("Updates", systemImage: "arrow.down.circle")
-                }
+                    }
             
             AboutSettingsView()
                 .tabItem {
                     Label("About", systemImage: "info.circle")
-                }
+            }
         }
         .frame(width: 500, height: 320)
     }
@@ -1094,40 +1094,29 @@ struct GeneralSettingsView: View {
     
     var body: some View {
         Form {
-            Section(header: Text("Appearance").font(.headline)) {
+            Section {
                 Picker("Theme", selection: $settings.appearanceMode) {
                     ForEach(AppearanceMode.allCases, id: \.self) { mode in
                         Text(mode.displayName).tag(mode)
                     }
                 }
                 .pickerStyle(.segmented)
-            }
-            
-            Divider()
-            
-            Section(header: Text("Storage").font(.headline)) {
+                
                 HStack {
                     Text("Max Clipboard Items")
                     Spacer()
                     TextField("", value: $settings.maxItems, formatter: NumberFormatter())
-                        .frame(width: 50)
+                        .frame(width: 80)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
                 }
-                Slider(value: Binding(
-                    get: { Double(settings.maxItems) },
-                    set: { settings.maxItems = Int($0) }
-                ), in: 10...500, step: 10)
-            }
-            
-            Divider()
-            
-            Section(header: Text("Monitoring").font(.headline)) {
+                
                 HStack {
                     Text("Update Interval (seconds)")
                     Spacer()
                     TextField("", value: $settings.updateInterval, formatter: NumberFormatter())
-                        .frame(width: 50)
+                        .frame(width: 80)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
                 }
-                Slider(value: $settings.updateInterval, in: 0.1...5.0, step: 0.1)
             }
         }
         .padding()
@@ -1143,7 +1132,7 @@ struct UpdatesSettingsView: View {
     
     var body: some View {
         Form {
-            Section(header: Text("Automatic Updates").font(.headline)) {
+            Section {
                 Toggle("Check for Updates Automatically", isOn: $settings.autoUpdateEnabled)
                 
                 if settings.autoUpdateEnabled {
@@ -1153,9 +1142,9 @@ struct UpdatesSettingsView: View {
                         Text("Check Interval (hours)")
                         Spacer()
                         TextField("", value: $settings.checkUpdateInterval, formatter: NumberFormatter())
-                            .frame(width: 50)
+                            .frame(width: 80)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
                     }
-                    Slider(value: $settings.checkUpdateInterval, in: 1...168, step: 1)
                 }
             }
         }
@@ -1170,15 +1159,15 @@ struct UpdatesSettingsView: View {
 struct AboutSettingsView: View {
     var body: some View {
         VStack(spacing: 20) {
-            Image(systemName: "doc.on.clipboard.fill")
-                .font(.system(size: 80))
-                .foregroundColor(.blue)
+            Image(nsImage: NSImage(named: "AppIcon") ?? NSImage())
+                .resizable()
+                .frame(width: 80, height: 80)
             
             VStack(spacing: 8) {
                 Text("Clipboard Manager")
                     .font(.largeTitle)
                     .fontWeight(.bold)
-                Text("Version 1.1.1")
+                Text("Version 1.1.2")
                     .foregroundColor(.secondary)
             }
             
@@ -1188,7 +1177,7 @@ struct AboutSettingsView: View {
             
             Spacer()
             
-            Text("© 2024 Your Name Here")
+            Text("© 2025 Your Name Here")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -1203,14 +1192,14 @@ struct AboutView: View {
                         Image(systemName: "doc.on.clipboard.fill")
                 .font(.system(size: 60))
                             .foregroundColor(.blue)
-            
+                    
             VStack {
                 Text("Clipboard Manager")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                 Text("Version 1.1.0")
                             .foregroundColor(.secondary)
-            }
+                    }
             
             Text("A simple and powerful clipboard manager for macOS.")
                         .multilineTextAlignment(.center)

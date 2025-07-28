@@ -317,7 +317,7 @@ class AppUpdateManager: ObservableObject {
     @Published var isChecking = false
     
     private var updateTimer: Timer?
-    private let currentVersion = "1.1.10"
+    private let currentVersion = "1.1.11"
     private let updateCheckURL = "https://api.github.com/repos/salimmous/clipboard-manager/releases/latest"
     
     private init() {}
@@ -817,8 +817,8 @@ class ClipboardManager: ObservableObject {
     func showWindow() {
         let settings = AppSettings()
         let windowSize = settings.compactMode ? 
-            CGSize(width: 300, height: 350) : 
-            CGSize(width: 380, height: 450)
+            CGSize(width: 380, height: 400) : 
+            CGSize(width: 420, height: 450)
             
         if clipboardWindow == nil {
             let contentView = ClipboardPopupView().environmentObject(self)
@@ -976,78 +976,147 @@ struct ClipboardPopupView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header with title, clear button, and close button (Draggable area)
-            HStack {
-                Text("Clipboard")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(.primary)
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Text("Clipboard")
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundColor(.primary)
+                        
+                        if !filteredItems.isEmpty {
+                            Text("\(filteredItems.count)")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.blue)
+                                .clipShape(Capsule())
+                        }
+                    }
+                    
+                    if !clipboardManager.items.isEmpty {
+                        Text("⌘+X to open • Esc to close")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary.opacity(0.8))
+                    }
+                }
                 
                 Spacer()
                 
-                Button("Clear all") {
-                    clipboardManager.items.removeAll()
-                    clipboardManager.saveItems()
-                }
-                .font(.system(size: 14))
-                .foregroundColor(.blue)
-                
-                Button(action: {
-                    showingFilters.toggle()
-                }) {
-                    Image(systemName: showingFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(hasActiveFilters ? .blue : .secondary)
-                }
-                .buttonStyle(.plain)
-                .padding(.leading, 8)
-                
-                Button(action: {
-                    clipboardManager.hideWindow() // Hide clipboard window first
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        openSettingsFromPopup()
+                // Action buttons with better styling
+                HStack(spacing: 8) {
+                    if !clipboardManager.items.isEmpty {
+                        Button("Clear all") {
+                            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                                clipboardManager.items.removeAll()
+                                clipboardManager.saveItems()
+                            }
+                        }
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.red)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.red.opacity(0.1))
+                        .clipShape(Capsule())
+                        .buttonStyle(.plain)
                     }
-                }) {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.secondary)
+                    
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            showingFilters.toggle()
+                        }
+                    }) {
+                        Image(systemName: showingFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(hasActiveFilters ? .blue : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .scaleEffect(showingFilters ? 1.1 : 1.0)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: showingFilters)
+                    
+                    Button(action: {
+                        clipboardManager.hideWindow()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            openSettingsFromPopup()
+                        }
+                    }) {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            clipboardManager.hideWindow()
+                        }
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
-                .padding(.leading, 8)
-                
-                Button(action: {
-                    clipboardManager.hideWindow()
-                }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .padding(.leading, 8)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-            .padding(.bottom, 8)
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 12)
+            .background(
+                LinearGradient(
+                    colors: [
+                        appSettings.appearanceMode.accentColor.opacity(0.03),
+                        Color.clear
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
             .background(DragAreaView())
             
             // Search and Filters Section
-            VStack(spacing: 8) {
+            VStack(spacing: 12) {
                 // Search bar
-                HStack {
+                HStack(spacing: 10) {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.secondary)
+                        .font(.system(size: 14, weight: .medium))
+                    
                     TextField("Search clipboard...", text: $searchText)
                         .textFieldStyle(.plain)
+                        .font(.system(size: 14))
+                        .onSubmit {
+                            // Focus first result when searching
+                            if !filteredItems.isEmpty {
+                                selectedIndex = 0
+                            }
+                        }
+                    
                     if !searchText.isEmpty {
-                        Button(action: { searchText = "" }) {
+                        Button(action: { 
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                searchText = ""
+                            }
+                        }) {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundColor(.secondary)
+                                .font(.system(size: 14))
                         }
                         .buttonStyle(.plain)
+                        .transition(.scale.combined(with: .opacity))
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color(NSColor.textBackgroundColor).opacity(0.5))
-                .cornerRadius(8)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(NSColor.textBackgroundColor))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(searchText.isEmpty ? Color.clear : Color.blue.opacity(0.3), lineWidth: 1)
+                        )
+                        .shadow(color: Color.black.opacity(0.03), radius: 1, x: 0, y: 1)
+                )
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: searchText.isEmpty)
                 
                 // Filters (when shown)
                 if showingFilters {
@@ -1135,17 +1204,31 @@ struct ClipboardPopupView: View {
 
             // Items List
             ScrollView {
-                LazyVStack(spacing: 8) {
+                LazyVStack(spacing: 6) {
                     ForEach(Array(filteredItems.enumerated()), id: \.element.id) { index, item in
                         ClipboardPopupItemView(
                             item: item,
                             isSelected: selectedIndex == index
                         )
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.8).combined(with: .opacity),
+                            removal: .scale(scale: 0.8).combined(with: .opacity)
+                        ))
+                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: filteredItems.count)
                         .onTapGesture {
                             selectedIndex = index
-                            clipboardManager.copyToClipboard(item)
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                clipboardManager.copyToClipboard(item)
+                            }
+                            
+                            // Visual feedback
+                            let impactFeedback = NSHapticFeedbackManager.defaultPerformer
+                            impactFeedback.perform(.generic, performanceTime: .default)
+                            
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                clipboardManager.hideWindow()
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    clipboardManager.hideWindow()
+                                }
                             }
                         }
                         .onHover { hovering in
@@ -1153,21 +1236,70 @@ struct ClipboardPopupView: View {
                                 selectedIndex = index
                             }
                         }
+                        .scaleEffect(selectedIndex == index ? 1.02 : 1.0)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selectedIndex)
                     }
                     
                     if filteredItems.isEmpty {
-                        VStack(spacing: 12) {
-                            Image(systemName: "doc.text.magnifyingglass")
-                                .font(.system(size: 40))
-                                .foregroundColor(.secondary.opacity(0.5))
+                        VStack(spacing: 20) {
+                            // Animated Icon
+                            VStack(spacing: 12) {
+                                ZStack {
+                                    Circle()
+                                        .fill(LinearGradient(
+                                            colors: [Color.blue.opacity(0.1), Color.purple.opacity(0.1)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ))
+                                        .frame(width: 80, height: 80)
+                                    
+                                    Image(systemName: "doc.text.magnifyingglass")
+                                        .font(.system(size: 32, weight: .medium))
+                                        .foregroundColor(.blue)
+                                }
+                                .scaleEffect(1.0)
+                                .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: UUID())
+                            }
                             
-                            Text(emptyStateMessage)
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
+                            VStack(spacing: 8) {
+                                Text(emptyStateTitle)
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(.primary)
+                                
+                                Text(emptyStateMessage)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .lineLimit(3)
+                            }
+                            
+                            // Quick Tips
+                            if !hasActiveFilters {
+                                VStack(spacing: 12) {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "lightbulb.fill")
+                                            .foregroundColor(.yellow)
+                                            .font(.system(size: 12))
+                                        Text("Quick Tips")
+                                            .font(.system(size: 12, weight: .medium))
+                                            .foregroundColor(.secondary)
+                                    }
+                                    
+                                    VStack(spacing: 6) {
+                                        TipRow(icon: "doc.on.doc", text: "Copy text to see it here instantly")
+                                        TipRow(icon: "photo", text: "Copy images for quick access")
+                                        TipRow(icon: "command", text: "Press ⌘+X to open clipboard")
+                                        TipRow(icon: "magnifyingglass", text: "Use search to find anything")
+                                    }
+                                }
+                                .padding(16)
+                                .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                            }
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 40)
+                        .padding(.horizontal, 20)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -1198,11 +1330,19 @@ struct ClipboardPopupView: View {
         selectedContentType != nil || dateFilter != .all || !searchText.isEmpty
     }
     
+    private var emptyStateTitle: String {
+        if hasActiveFilters {
+            return "No Results Found"
+        } else {
+            return "Welcome to Clipboard Manager! 👋"
+        }
+    }
+    
     private var emptyStateMessage: String {
         if hasActiveFilters {
-            return "No items match your current filters.\nTry adjusting your search criteria."
+            return "No items match your current filters.\nTry adjusting your search criteria or clear filters."
         } else {
-            return "No clipboard items yet.\nCopy something to get started!"
+            return "Your clipboard history will appear here.\nCopy something to get started!"
         }
     }
     
@@ -1455,42 +1595,21 @@ struct ClipboardPopupItemView: View {
             // Action buttons
             HStack(spacing: 4) {
                 Menu {
-                    // Quick Actions Section
-                    let quickActions = QuickAction.availableActions(for: item)
-                    if !quickActions.isEmpty {
-                        Section("Quick Actions") {
-                            ForEach(quickActions, id: \.title) { action in
-                                Button(action.title) {
-                                    let transformedText = action.apply(to: item.content)
-                                    let newItem = ClipboardItem(content: transformedText)
-                                    clipboardManager.addItem(content: transformedText)
-                                    clipboardManager.copyToClipboard(newItem)
-                                }
-                                Label(action.title, systemImage: action.icon)
-                            }
-                        }
-                        
-                        Divider()
-                    }
-                    
                     // Standard Actions Section
                     Section("Actions") {
                         if item.type == .url {
                             Button("Open in Browser") {
                                 openInBrowser(item.content)
                             }
-                            Label("Open in Browser", systemImage: "safari")
                         }
                         
                         Button("Share to WhatsApp") {
                             shareToWhatsApp(item.content)
                         }
-                        Label("Share to WhatsApp", systemImage: "message")
                         
                         Button("Share to Other Apps") {
                             shareToOtherApps(item)
                         }
-                        Label("Share to Other Apps", systemImage: "square.and.arrow.up")
                     }
                     
                     Divider()
@@ -1499,12 +1618,10 @@ struct ClipboardPopupItemView: View {
                         Button("Copy") {
                             clipboardManager.copyToClipboard(item)
                         }
-                        Label("Copy", systemImage: "doc.on.doc")
                         
                         Button("Delete") {
                             clipboardManager.removeItem(item)
                         }
-                        Label("Delete", systemImage: "trash")
                     }
                 } label: {
                     Image(systemName: "ellipsis")
@@ -1609,78 +1726,93 @@ class SettingsWindowDelegate: NSObject, NSWindowDelegate {
 struct MenuBarView: View {
     @EnvironmentObject var clipboardManager: ClipboardManager
     @StateObject private var appSettings = AppSettings()
-    @StateObject private var updateManager = AppUpdateManager.shared
     private static var settingsWindowDelegate = SettingsWindowDelegate()
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Pinned Items
-            ForEach(clipboardManager.items.filter { $0.isPinned }) { item in
+            // Show only first 5 items
+            let displayItems = Array(clipboardManager.items.prefix(5))
+            
+            if !displayItems.isEmpty {
+                ForEach(displayItems) { item in
                     Button(action: {
-                    clipboardManager.copyToClipboard(item)
-                }) {
-                    HStack {
-                        Text(item.content)
-                            .lineLimit(1)
-                        Spacer()
-                        Image(systemName: "pin.fill")
-                                .foregroundColor(.secondary)
+                        clipboardManager.copyToClipboard(item)
+                    }) {
+                        HStack {
+                            Image(systemName: item.typeIcon)
+                                .foregroundColor(iconColor(for: item.type))
+                                .frame(width: 16)
+                            
+                            Text(item.displayContent)
+                                .lineLimit(nil) // Show full text
+                                .multilineTextAlignment(.leading)
+                                .truncationMode(.tail)
+                                .frame(maxWidth: 300, alignment: .leading) // Ensure adequate width
+                            
+                            if item.isPinned {
+                                Spacer()
+                                Image(systemName: "pin.fill")
+                                    .foregroundColor(.orange)
+                                    .font(.caption)
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-            }
-            
-            if !clipboardManager.items.filter({ $0.isPinned }).isEmpty {
-                Divider()
-            }
-            
-            // Recent Items
-            ForEach(clipboardManager.items.filter { !$0.isPinned }.prefix(10)) { item in
-                    Button(action: {
-                    clipboardManager.copyToClipboard(item)
-                }) {
-                    Text(item.content)
-                        .lineLimit(1)
+                    .buttonStyle(.plain)
+                }
+                
+                if clipboardManager.items.count > 5 {
+                    Divider()
                 }
             }
             
-            if clipboardManager.items.isEmpty {
-                Text("No clipboard items")
-                            .foregroundColor(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+            if clipboardManager.items.count > 5 {
+                Button("Show All") {
+                    clipboardManager.showWindow()
+                }
+                .buttonStyle(.plain)
+            }
+            
+            if !clipboardManager.items.isEmpty {
+                Divider()
+                
+                Button("Clear All") {
+                    clipboardManager.deleteAllItems()
+                }
+                .buttonStyle(.plain)
             }
             
             Divider()
             
-            // Main Actions
-            Button("Show All") {
-                clipboardManager.showWindow()
-                    }
-            
-            Button("Clear All") {
-                clipboardManager.deleteAllItems()
-            }
-            
-            Divider()
-            
-            // Settings and Updates
             Button("Check for Updates...") {
-                    updateManager.checkForUpdates()
+                AppUpdateManager.shared.checkForUpdates()
             }
+            .buttonStyle(.plain)
             
             Button("Settings...") {
                 openSettingsWindow()
-                    }
+            }
+            .buttonStyle(.plain)
             
             Divider()
             
-            // Quit
             Button("Quit Clipboard Manager") {
                 NSApplication.shared.terminate(nil)
-                }
             }
-        .padding(6)
+            .buttonStyle(.plain)
         }
+    }
+    
+    private func iconColor(for type: ClipboardItemType) -> Color {
+        switch type {
+        case .text:
+            return .blue
+        case .image:
+            return .green
+        case .url:
+            return .purple
+        }
+    }
     
     private func openSettingsWindow() {
         if let window = NSApp.windows.first(where: { $0.title == "Clipboard Manager Settings" }) {
@@ -2291,5 +2423,26 @@ class KeyView: NSView {
     
     override func keyDown(with event: NSEvent) {
         onKeyDown?(event)
+    }
+}
+
+// MARK: - Tip Row Component
+struct TipRow: View {
+    let icon: String
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.blue)
+                .frame(width: 16)
+            
+            Text(text)
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+            
+            Spacer()
+        }
     }
 }

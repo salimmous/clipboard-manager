@@ -273,7 +273,7 @@ class AppUpdateManager: ObservableObject {
     @Published var isChecking = false
     
     private var updateTimer: Timer?
-    private let currentVersion = "1.1.8"
+    private let currentVersion = "1.1.9"
     private let updateCheckURL = "https://api.github.com/repos/salimmous/clipboard-manager/releases/latest"
     
     private init() {}
@@ -553,7 +553,6 @@ class ClipboardManager: ObservableObject {
     
     @Published var items: [ClipboardItem] = []
     @Published var isWindowVisible = false
-    @Published var showingSettings = false
     
     private var timer: Timer?
     private var lastChangeCount: Int = 0
@@ -741,6 +740,7 @@ struct ClipboardPopupView: View {
     @EnvironmentObject var clipboardManager: ClipboardManager
     @State private var selectedIndex: Int? = 0
     @State private var searchText = ""
+    private static var settingsDelegate = SettingsWindowDelegate()
     
     var filteredItems: [ClipboardItem] {
         if searchText.isEmpty {
@@ -768,7 +768,10 @@ struct ClipboardPopupView: View {
                 .foregroundColor(.blue)
                 
                 Button(action: {
-                    clipboardManager.showingSettings = true
+                    clipboardManager.hideWindow() // Hide clipboard window first
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        openSettingsFromPopup()
+                    }
                 }) {
                     Image(systemName: "gearshape.fill")
                         .font(.system(size: 16, weight: .medium))
@@ -845,9 +848,6 @@ struct ClipboardPopupView: View {
                 .shadow(color: Color.black.opacity(0.15), radius: 20, x: 0, y: 8)
         )
         .preferredColorScheme(nil) // Adapts to system appearance
-        .sheet(isPresented: $clipboardManager.showingSettings) {
-            SettingsView()
-        }
         .onAppear {
             if !filteredItems.isEmpty {
                 selectedIndex = 0
@@ -893,6 +893,35 @@ struct ClipboardPopupView: View {
             }
         default:
             break
+        }
+    }
+    
+    private func openSettingsFromPopup() {
+        if let window = NSApp.windows.first(where: { $0.title == "Clipboard Manager Settings" }) {
+            window.makeKeyAndOrderFront(nil)
+        } else {
+            let settings = AppSettings()
+            let settingsView = SettingsView().environmentObject(settings)
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 600, height: 400),
+                styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                backing: .buffered,
+                defer: false
+            )
+            window.center()
+            window.setFrameAutosaveName("Settings")
+            window.contentView = NSHostingView(rootView: settingsView)
+            window.title = "Clipboard Manager Settings"
+            
+            // Configure window to not affect app lifecycle
+            window.isReleasedWhenClosed = false  // Keep the window in memory
+            window.hidesOnDeactivate = false
+            window.delegate = Self.settingsDelegate  // Use custom delegate
+            
+            // Set window level above normal but below floating
+            window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.normalWindow)) + 1)
+            
+            window.makeKeyAndOrderFront(nil)
         }
     }
 }
@@ -1174,6 +1203,15 @@ struct SettingsView: View {
         }
         .frame(width: 600, height: 400)
         .background(Color(NSColor.windowBackgroundColor))
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Button("Done") {
+                    // Close the window
+                    NSApp.keyWindow?.performClose(nil)
+                }
+                .keyboardShortcut(.escape)
+            }
+        }
     }
 }
 

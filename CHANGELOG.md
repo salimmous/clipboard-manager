@@ -4,6 +4,11 @@ All notable changes to ClipboardManager will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.9] - 2025-07-28
+### Fixed
+- Bug fixes and improvements
+
+
 ## [1.1.8] - 2025-07-28
 ### Fixed
 - Bug fixes and improvements

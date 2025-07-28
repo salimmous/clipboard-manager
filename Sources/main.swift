@@ -273,7 +273,7 @@ class AppUpdateManager: ObservableObject {
     @Published var isChecking = false
     
     private var updateTimer: Timer?
-    private let currentVersion = "1.1.6"
+    private let currentVersion = "1.1.7"
     private let updateCheckURL = "https://api.github.com/repos/salimmous/clipboard-manager/releases/latest"
     
     private init() {}
@@ -677,6 +677,9 @@ class ClipboardManager: ObservableObject {
             clipboardWindow?.isMovableByWindowBackground = true
             clipboardWindow?.center()
             
+            // Ensure window can receive key events
+            clipboardWindow?.acceptsMouseMovedEvents = true
+            
             // Enable dragging
             if let contentView = clipboardWindow?.contentView {
                 contentView.wantsLayer = true
@@ -684,6 +687,12 @@ class ClipboardManager: ObservableObject {
         }
         clipboardWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        
+        // Ensure the window becomes the key window for keyboard input
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.clipboardWindow?.makeKey()
+        }
+        
         isWindowVisible = true
     }
     
@@ -819,8 +828,14 @@ struct ClipboardPopupView: View {
     }
     
     private func handleKeyDown(_ event: NSEvent) {
-        let items = clipboardManager.items
-        guard !items.isEmpty else { return }
+        let items = filteredItems
+        guard !items.isEmpty else { 
+            // Even if no items, still allow Esc to close
+            if event.keyCode == 53 { // Escape
+                clipboardManager.hideWindow()
+            }
+            return 
+        }
         
         switch event.keyCode {
         case 36: // Enter
@@ -830,6 +845,18 @@ struct ClipboardPopupView: View {
             }
         case 53: // Escape
             clipboardManager.hideWindow()
+        case 125: // Down arrow
+            if let current = selectedIndex {
+                selectedIndex = min(current + 1, items.count - 1)
+            } else {
+                selectedIndex = 0
+            }
+        case 126: // Up arrow
+            if let current = selectedIndex {
+                selectedIndex = max(current - 1, 0)
+            } else {
+                selectedIndex = 0
+            }
         default:
             break
         }

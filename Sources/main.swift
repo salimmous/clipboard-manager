@@ -2,6 +2,8 @@ import SwiftUI
 import AppKit
 import Combine
 import Carbon
+import UserNotifications
+import CloudKit
 
 // MARK: - Main App
 @main
@@ -228,18 +230,37 @@ enum AppearanceMode: String, CaseIterable, Codable {
 }
 
 class AppSettings: ObservableObject {
-    @Published var appearanceMode: AppearanceMode = .system
-    @Published var maxItems: Int = 100
-    @Published var updateInterval: Double = 0.5 // in seconds
-    @Published var autoUpdateEnabled: Bool = true
-    @Published var checkUpdateInterval: Double = 24.0 // in hours
-    @Published var autoInstallUpdates: Bool = false // auto-install updates
-    @Published var compactMode: Bool = false
-    @Published var showNotifications: Bool = true
+    private var isLoading = true // Prevent saving during initialization
+    
+    @Published var appearanceMode: AppearanceMode = .system {
+        didSet { if !isLoading { saveSettings() } }
+    }
+    @Published var maxItems: Int = 100 {
+        didSet { if !isLoading { saveSettings() } }
+    }
+    @Published var updateInterval: Double = 0.5 { // in seconds
+        didSet { if !isLoading { saveSettings() } }
+    }
+    @Published var autoUpdateEnabled: Bool = true {
+        didSet { if !isLoading { saveSettings() } }
+    }
+    @Published var checkUpdateInterval: Double = 24.0 { // in hours
+        didSet { if !isLoading { saveSettings() } }
+    }
+    @Published var autoInstallUpdates: Bool = false { // auto-install updates
+        didSet { if !isLoading { saveSettings() } }
+    }
+    @Published var compactMode: Bool = false {
+        didSet { if !isLoading { saveSettings() } }
+    }
+    @Published var showNotifications: Bool = true {
+        didSet { if !isLoading { saveSettings() } }
+    }
     
     init() {
         loadSettings()
         applyAppearanceMode()
+        isLoading = false // Enable auto-saving after initial load
     }
     
     private func loadSettings() {
@@ -280,6 +301,10 @@ class AppSettings: ObservableObject {
         UserDefaults.standard.set(compactMode, forKey: "CompactMode")
         UserDefaults.standard.set(showNotifications, forKey: "ShowNotifications")
         UserDefaults.standard.set(checkUpdateInterval, forKey: "CheckUpdateInterval")
+        
+        // Force synchronization to disk immediately
+        UserDefaults.standard.synchronize()
+        
         applyAppearanceMode()
         
         // Restart monitoring with new interval
@@ -620,6 +645,16 @@ struct ClipboardItem: Identifiable, Codable, Hashable {
         self.imageData = nil
     }
     
+    // Complete initializer for sync
+    init(id: UUID, content: String, type: ClipboardItemType, isPinned: Bool, timestamp: Date, imageData: Data?) {
+        self.id = id
+        self.content = content
+        self.type = type
+        self.isPinned = isPinned
+        self.timestamp = timestamp
+        self.imageData = imageData
+    }
+    
     var displayContent: String {
         switch type {
         case .text, .url:
@@ -653,29 +688,54 @@ class ClipboardManager: ObservableObject {
     private var timer: Timer?
     private var lastChangeCount: Int = 0
     private var clipboardWindow: NSWindow?
-    private let settings = AppSettings()
+    private let maxItems = 100
     
-    var maxItems: Int {
-        return settings.maxItems
-    }
+    // Integration managers
+    @Published var iCloudSync: iCloudSyncManager!
+    @Published var scheduledClear: ScheduledClearManager!
+    @Published var integrations: IntegrationManager!
     
     private init() {
+        // Initialize managers after self is available
+        DispatchQueue.main.async {
+            self.iCloudSync = iCloudSyncManager()
+            self.scheduledClear = ScheduledClearManager(clipboardManager: self)
+            self.integrations = IntegrationManager()
+        }
+        
         loadItems()
+        setupGlobalHotkey()
+        startMonitoring()
+    }
+    
+    func setupGlobalHotkey() {
+        // Register global hotkey ⌘+X
+        let hotKeyId = EventHotKeyID(signature: OSType(0x4D43), id: 1)
+        var eventHotKey: EventHotKeyRef?
+        
+        let status = RegisterEventHotKey(
+            UInt32(kVK_ANSI_X),
+            UInt32(cmdKey),
+            hotKeyId,
+            GetApplicationEventTarget(),
+            0,
+            &eventHotKey
+        )
+        
+        if status != noErr {
+            print("Failed to register global hotkey")
+        }
     }
     
     func startMonitoring() {
         lastChangeCount = NSPasteboard.general.changeCount
-        timer = Timer.scheduledTimer(withTimeInterval: settings.updateInterval, repeats: true) { _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
             self.checkClipboard()
         }
     }
     
     func restartMonitoring() {
-        // Stop current monitoring
         timer?.invalidate()
-        timer = nil
-        
-        // Start monitoring with new interval
         startMonitoring()
     }
     
@@ -778,7 +838,7 @@ class ClipboardManager: ObservableObject {
         
         switch item.type {
         case .text, .url:
-            pasteboard.setString(item.content, forType: .string)
+        pasteboard.setString(item.content, forType: .string)
         case .image:
             if let imageData = item.imageData {
                 pasteboard.setData(imageData, forType: .tiff)
@@ -796,6 +856,8 @@ class ClipboardManager: ObservableObject {
     func saveItems() {
         if let data = try? JSONEncoder().encode(items) {
             UserDefaults.standard.set(data, forKey: "ClipboardItems")
+            // Force synchronization to disk immediately
+            UserDefaults.standard.synchronize()
         }
     }
     
@@ -979,9 +1041,9 @@ struct ClipboardPopupView: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
-                        Text("Clipboard")
+                Text("Clipboard")
                             .font(.system(size: 22, weight: .bold))
-                            .foregroundColor(.primary)
+                    .foregroundColor(.primary)
                         
                         if !filteredItems.isEmpty {
                             Text("\(filteredItems.count)")
@@ -1006,11 +1068,11 @@ struct ClipboardPopupView: View {
                 // Action buttons with better styling
                 HStack(spacing: 8) {
                     if !clipboardManager.items.isEmpty {
-                        Button("Clear all") {
+                Button("Clear all") {
                             withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                                clipboardManager.items.removeAll()
-                                clipboardManager.saveItems()
-                            }
+                    clipboardManager.items.removeAll()
+                    clipboardManager.saveItems()
+                }
                         }
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.red)
@@ -1020,8 +1082,8 @@ struct ClipboardPopupView: View {
                         .clipShape(Capsule())
                         .buttonStyle(.plain)
                     }
-                    
-                    Button(action: {
+                
+                Button(action: {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             showingFilters.toggle()
                         }
@@ -1039,23 +1101,23 @@ struct ClipboardPopupView: View {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             openSettingsFromPopup()
                         }
-                    }) {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    
-                    Button(action: {
+                }) {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                
+                Button(action: {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            clipboardManager.hideWindow()
+                    clipboardManager.hideWindow()
                         }
-                    }) {
+                }) {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 20)
@@ -1075,14 +1137,14 @@ struct ClipboardPopupView: View {
             
             // Search and Filters Section
             VStack(spacing: 12) {
-                // Search bar
+            // Search bar
                 HStack(spacing: 10) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.secondary)
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
                         .font(.system(size: 14, weight: .medium))
                     
-                    TextField("Search clipboard...", text: $searchText)
-                        .textFieldStyle(.plain)
+                TextField("Search clipboard...", text: $searchText)
+                    .textFieldStyle(.plain)
                         .font(.system(size: 14))
                         .onSubmit {
                             // Focus first result when searching
@@ -1091,17 +1153,17 @@ struct ClipboardPopupView: View {
                             }
                         }
                     
-                    if !searchText.isEmpty {
+                if !searchText.isEmpty {
                         Button(action: { 
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 searchText = ""
                             }
                         }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.secondary)
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
                                 .font(.system(size: 14))
-                        }
-                        .buttonStyle(.plain)
+                    }
+                    .buttonStyle(.plain)
                         .transition(.scale.combined(with: .opacity))
                     }
                 }
@@ -1218,7 +1280,7 @@ struct ClipboardPopupView: View {
                         .onTapGesture {
                             selectedIndex = index
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                clipboardManager.copyToClipboard(item)
+                            clipboardManager.copyToClipboard(item)
                             }
                             
                             // Visual feedback
@@ -1227,7 +1289,7 @@ struct ClipboardPopupView: View {
                             
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                 withAnimation(.easeInOut(duration: 0.3)) {
-                                    clipboardManager.hideWindow()
+                                clipboardManager.hideWindow()
                                 }
                             }
                         }
@@ -1555,10 +1617,10 @@ struct ClipboardPopupItemView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(item.displayContent)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.primary)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.primary)
                         .lineLimit(item.type == .image ? 1 : 2)
-                        .multilineTextAlignment(.leading)
+                    .multilineTextAlignment(.leading)
                     
                     if item.type == .url {
                         Image(systemName: "arrow.up.right.square")
@@ -1569,8 +1631,8 @@ struct ClipboardPopupItemView: View {
                 
                 HStack {
                     Text(timeAgo)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                     
                     if item.isPinned {
                         Text("• Pinned")
@@ -1603,26 +1665,46 @@ struct ClipboardPopupItemView: View {
                             }
                         }
                         
-                        Button("Share to WhatsApp") {
-                            shareToWhatsApp(item.content)
+                    Button("Share to WhatsApp") {
+                        shareToWhatsApp(item.content)
+                    }
+                    
+                    Button("Share to Other Apps") {
+                            shareToOtherApps(item)
+                        }
+                    }
+                    
+                    // Integration Section
+                    Section("Integrations") {
+                        Button("Send to Slack") {
+                            clipboardManager.integrations?.shareToSlack(item.content)
                         }
                         
-                        Button("Share to Other Apps") {
-                            shareToOtherApps(item)
+                        Button("Send to Discord") {
+                            clipboardManager.integrations?.shareToDiscord(item.content)
+                        }
+                        
+                        Button("Compose Email") {
+                            clipboardManager.integrations?.composeEmail(with: item.content)
+                        }
+                        
+                        Button("Save to Notes") {
+                            let title = String(item.content.prefix(50)) + (item.content.count > 50 ? "..." : "")
+                            clipboardManager.integrations?.saveToNotes(item.content, title: title)
                         }
                     }
                     
                     Divider()
                     
                     Section("Clipboard") {
-                        Button("Copy") {
+                    Button("Copy") {
                             clipboardManager.copyToClipboard(item)
                         }
                         
                         Button("Delete") {
                             clipboardManager.removeItem(item)
                         }
-                    }
+                             }
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 14, weight: .medium))
@@ -1769,37 +1851,37 @@ struct MenuBarView: View {
             if clipboardManager.items.count > 5 {
                 Button("Show All") {
                     clipboardManager.showWindow()
-                }
-                .buttonStyle(.plain)
+                    }
+                    .buttonStyle(.plain)
             }
             
             if !clipboardManager.items.isEmpty {
                 Divider()
-                
+
                 Button("Clear All") {
-                    clipboardManager.deleteAllItems()
-                }
-                .buttonStyle(.plain)
+                clipboardManager.deleteAllItems()
+            }
+            .buttonStyle(.plain)
             }
             
             Divider()
             
             Button("Check for Updates...") {
                 AppUpdateManager.shared.checkForUpdates()
-            }
-            .buttonStyle(.plain)
+                }
+                .buttonStyle(.plain)
             
             Button("Settings...") {
                 openSettingsWindow()
-            }
-            .buttonStyle(.plain)
-            
-            Divider()
-            
+        }
+        .buttonStyle(.plain)
+                        
+                        Divider()
+                        
             Button("Quit Clipboard Manager") {
                 NSApplication.shared.terminate(nil)
-            }
-            .buttonStyle(.plain)
+        }
+        .buttonStyle(.plain)
         }
     }
     
@@ -1864,23 +1946,28 @@ struct SettingsView: View {
     @StateObject private var settings = AppSettings()
     
     var body: some View {
-        TabView {
-            GeneralSettingsView(settings: settings)
-                .tabItem {
+            TabView {
+                GeneralSettingsView(settings: settings)
+                    .tabItem {
                     Label("General", systemImage: "gear")
-                }
-            
+                    }
+                
             UpdatesSettingsView(settings: settings)
-                .tabItem {
+                    .tabItem {
                     Label("Updates", systemImage: "arrow.down.circle")
+                    }
+            
+            IntegrationsSettingsView()
+                .tabItem {
+                    Label("Integrations", systemImage: "link")
                 }
             
             AboutSettingsView()
                 .tabItem {
                     Label("About", systemImage: "info.circle")
-                }
+            }
         }
-        .frame(width: 600, height: 400)
+        .frame(width: 600, height: 480)
         .background(Color(NSColor.windowBackgroundColor))
         .toolbar {
             ToolbarItem(placement: .automatic) {
@@ -1900,26 +1987,26 @@ struct GeneralSettingsView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                // Appearance Section
+                VStack(spacing: 24) {
+                    // Appearance Section
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack {
+                            HStack {
                         Image(systemName: "paintbrush.fill")
                             .foregroundColor(.blue)
                             .font(.system(size: 16, weight: .medium))
                         Text("Appearance")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(.primary)
-                        Spacer()
-                    }
-                    
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(.primary)
+                                Spacer()
+                            }
+                            
                     VStack(spacing: 8) {
                         Picker("Theme", selection: $settings.appearanceMode) {
-                            ForEach(AppearanceMode.allCases, id: \.self) { mode in
-                                Text(mode.displayName).tag(mode)
+                                ForEach(AppearanceMode.allCases, id: \.self) { mode in
+                                    Text(mode.displayName).tag(mode)
+                                }
                             }
-                        }
-                        .pickerStyle(.segmented)
+                            .pickerStyle(.segmented)
                         
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
@@ -1941,26 +2028,26 @@ struct GeneralSettingsView: View {
                 
                 // Notifications Section
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack {
+                            HStack {
                         Image(systemName: "bell.fill")
                             .foregroundColor(.orange)
                             .font(.system(size: 16, weight: .medium))
                         Text("Notifications")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(.primary)
-                        Spacer()
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(.primary)
+                                Spacer()
                     }
                     
                     VStack(spacing: 16) {
-                        HStack {
+                                HStack {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Smart Notifications")
                                     .font(.system(size: 14, weight: .medium))
                                 Text("Show notifications when items are copied")
                                     .font(.system(size: 12))
-                                    .foregroundColor(.secondary)
+                                        .foregroundColor(.secondary)
                             }
-                            Spacer()
+                                    Spacer()
                             Toggle("", isOn: $settings.showNotifications)
                                 .toggleStyle(.switch)
                         }
@@ -1972,26 +2059,26 @@ struct GeneralSettingsView: View {
                 
                 // Performance Section
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack {
+                            HStack {
                         Image(systemName: "speedometer")
                             .foregroundColor(.green)
                             .font(.system(size: 16, weight: .medium))
                         Text("Performance")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(.primary)
-                        Spacer()
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(.primary)
+                                Spacer()
                     }
                     
                     VStack(spacing: 16) {
-                        HStack {
+                                HStack {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Max Clipboard Items")
                                     .font(.system(size: 14, weight: .medium))
                                 Text("Maximum number of items to store")
                                     .font(.system(size: 12))
-                                    .foregroundColor(.secondary)
+                                        .foregroundColor(.secondary)
                             }
-                            Spacer()
+                                    Spacer()
                             TextField("", value: $settings.maxItems, formatter: NumberFormatter())
                                 .frame(width: 80)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -2003,7 +2090,7 @@ struct GeneralSettingsView: View {
                                     .font(.system(size: 14, weight: .medium))
                                 Text("How often to check clipboard (seconds)")
                                     .font(.system(size: 12))
-                                    .foregroundColor(.secondary)
+                                .foregroundColor(.secondary)
                             }
                             Spacer()
                             TextField("", value: $settings.updateInterval, formatter: NumberFormatter())
@@ -2021,7 +2108,7 @@ struct GeneralSettingsView: View {
             .padding(20)
         }
         .onDisappear {
-            settings.saveSettings()
+                                        settings.saveSettings()
         }
     }
 }
@@ -2035,14 +2122,14 @@ struct UpdatesSettingsView: View {
             VStack(spacing: 24) {
                 // Auto Updates Section
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack {
+                                    HStack {
                         Image(systemName: "arrow.down.circle.fill")
                             .foregroundColor(.orange)
-                            .font(.system(size: 16, weight: .medium))
+                                            .font(.system(size: 16, weight: .medium))
                         Text("Automatic Updates")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(.primary)
-                        Spacer()
+                                            .foregroundColor(.primary)
+                                        Spacer()
                     }
                     
                     VStack(spacing: 16) {
@@ -2061,15 +2148,15 @@ struct UpdatesSettingsView: View {
                         
                         if settings.autoUpdateEnabled {
                             VStack(spacing: 16) {
-                                HStack {
+                                        HStack {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text("Install Updates Automatically")
                                             .font(.system(size: 14, weight: .medium))
                                         Text("Install updates without asking")
                                             .font(.system(size: 12))
-                                            .foregroundColor(.secondary)
+                                                .foregroundColor(.secondary)
                                     }
-                                    Spacer()
+                                            Spacer()
                                     Toggle("", isOn: $settings.autoInstallUpdates)
                                         .toggleStyle(.switch)
                                 }
@@ -2080,7 +2167,7 @@ struct UpdatesSettingsView: View {
                                             .font(.system(size: 14, weight: .medium))
                                         Text("How often to check for updates (hours)")
                                             .font(.system(size: 12))
-                                            .foregroundColor(.secondary)
+                                        .foregroundColor(.secondary)
                                     }
                                     Spacer()
                                     TextField("", value: $settings.checkUpdateInterval, formatter: NumberFormatter())
@@ -2121,7 +2208,7 @@ struct AboutSettingsView: View {
     var body: some View {
         VStack(spacing: 24) {
             // App Icon with modern styling
-            VStack(spacing: 16) {
+                VStack(spacing: 16) {
                 ZStack {
                     Circle()
                         .fill(LinearGradient(
@@ -2132,8 +2219,8 @@ struct AboutSettingsView: View {
                         .frame(width: 100, height: 100)
                     
                     Image(nsImage: NSImage(named: "AppIcon") ?? NSImage())
-                        .resizable()
-                        .frame(width: 80, height: 80)
+                            .resizable()
+                            .frame(width: 80, height: 80)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                         .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
                 }
@@ -2143,11 +2230,11 @@ struct AboutSettingsView: View {
             VStack(spacing: 12) {
                 Text("Clipboard Manager")
                     .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundColor(.primary)
-                
+                            .foregroundColor(.primary)
+                        
                 Text("Version \(appVersion)")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.secondary)
+                            .foregroundColor(.secondary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 4)
                     .background(Color.secondary.opacity(0.1))
@@ -2158,13 +2245,13 @@ struct AboutSettingsView: View {
             VStack(spacing: 8) {
                 Text("A simple and powerful clipboard manager for macOS")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.primary)
-                    .multilineTextAlignment(.center)
-                
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.center)
+                    
                 Text("Built with Swift and SwiftUI")
                     .font(.system(size: 14))
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
             }
             .frame(maxWidth: 320)
             
@@ -2194,6 +2281,169 @@ struct AboutSettingsView: View {
                 endPoint: .bottomTrailing
             )
         )
+    }
+}
+
+// MARK: - Integrations Settings Tab
+struct IntegrationsSettingsView: View {
+    @StateObject private var integrations = IntegrationManager()
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                // Header
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "link.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.blue)
+                        Text("Integrations")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                    }
+                    Text("Configure external service integrations")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.top)
+                
+                // Slack Integration
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "bubble.left.and.bubble.right.fill")
+                                .foregroundColor(.purple)
+                            Text("Slack Integration")
+                                .font(.headline)
+                            Spacer()
+                        }
+                        
+                        Text("Enter your Slack webhook URL to send clipboard items to Slack channels.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        TextField("Slack Webhook URL", text: $integrations.slackWebhookURL)
+                            .textFieldStyle(.roundedBorder)
+                            .help("Get webhook URL from Slack: Settings > Apps > Incoming Webhooks")
+                    }
+                    .padding()
+                }
+                
+                // Discord Integration
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "message.fill")
+                                .foregroundColor(.indigo)
+                            Text("Discord Integration")
+                                .font(.headline)
+                            Spacer()
+                        }
+                        
+                        Text("Enter your Discord webhook URL to send clipboard items to Discord channels.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        TextField("Discord Webhook URL", text: $integrations.discordWebhookURL)
+                            .textFieldStyle(.roundedBorder)
+                            .help("Get webhook URL from Discord: Server Settings > Integrations > Webhooks")
+                    }
+                    .padding()
+                }
+                
+                // Email Integration
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "envelope.fill")
+                                .foregroundColor(.blue)
+                            Text("Email Integration")
+                                .font(.headline)
+                            Spacer()
+                        }
+                        
+                        Text("Choose your default email application for composing messages.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Picker("Default Email App", selection: $integrations.defaultEmailApp) {
+                            ForEach(IntegrationManager.EmailApp.allCases, id: \.self) { app in
+                                Text(app.rawValue).tag(app)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                    }
+                    .padding()
+                }
+                
+                // Notes Integration
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "note.text")
+                                .foregroundColor(.orange)
+                            Text("Notes Integration")
+                                .font(.headline)
+                            Spacer()
+                        }
+                        
+                        Text("Choose your default notes application for saving clipboard items.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Picker("Default Notes App", selection: $integrations.defaultNotesApp) {
+                            ForEach(IntegrationManager.NotesApp.allCases, id: \.self) { app in
+                                Text(app.rawValue).tag(app)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                    }
+                    .padding()
+                }
+                
+                // Test Integration Section
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "testtube.2")
+                                .foregroundColor(.green)
+                            Text("Test Integrations")
+                                .font(.headline)
+                            Spacer()
+                        }
+                        
+                        Text("Test your configured integrations with sample content.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        HStack(spacing: 12) {
+                            Button("Test Slack") {
+                                integrations.shareToSlack("🧪 Test message from Clipboard Manager")
+                            }
+                            .disabled(integrations.slackWebhookURL.isEmpty)
+                            
+                            Button("Test Discord") {
+                                integrations.shareToDiscord("🧪 Test message from Clipboard Manager")
+                            }
+                            .disabled(integrations.discordWebhookURL.isEmpty)
+                            
+                            Button("Test Email") {
+                                integrations.composeEmail(with: "🧪 Test message from Clipboard Manager", subject: "Test from Clipboard Manager")
+                            }
+                            
+                            Button("Test Notes") {
+                                integrations.saveToNotes("🧪 Test message from Clipboard Manager", title: "Test Note")
+                            }
+                        }
+                    }
+                    .padding()
+                }
+                
+                Spacer(minLength: 20)
+            }
+            .padding(.horizontal)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
@@ -2444,5 +2694,408 @@ struct TipRow: View {
             
             Spacer()
         }
+    }
+}
+
+// MARK: - iCloud Sync Manager
+class iCloudSyncManager: ObservableObject {
+    private var container: CKContainer?
+    private var database: CKDatabase?
+    @Published var isSyncing = false
+    @Published var syncEnabled = false
+    
+    init() {
+        // Don't initialize CloudKit by default to prevent crashes
+        // CloudKit requires proper entitlements and container setup
+        syncEnabled = false
+        print("iCloudSyncManager initialized - CloudKit disabled until proper entitlements are configured")
+        // loadSyncSettings()
+    }
+    
+    private func loadSyncSettings() {
+        syncEnabled = UserDefaults.standard.bool(forKey: "iCloudSyncEnabled")
+    }
+    
+    func toggleSync(_ enabled: Bool) {
+        // CloudKit is disabled until proper entitlements are configured
+        syncEnabled = false
+        print("CloudKit sync is disabled - requires proper app entitlements and container setup")
+    }
+    
+    private func checkiCloudStatus() {
+        // CloudKit functionality disabled to prevent crashes
+        print("iCloud status check disabled - requires proper CloudKit configuration")
+    }
+    
+    private func setupCloudKitSubscription() {
+        // CloudKit subscription disabled
+        print("CloudKit subscription disabled - requires proper configuration")
+    }
+    
+    func syncClipboardItem(_ item: ClipboardItem) {
+        // CloudKit sync disabled to prevent crashes
+        print("CloudKit sync disabled - item not synced: \(item.content.prefix(50))")
+        return
+    }
+    
+    func fetchRemoteItems(completion: @escaping ([ClipboardItem]) -> Void) {
+        // CloudKit fetch disabled to prevent crashes
+        print("CloudKit fetch disabled - returning empty array")
+        completion([])
+    }
+}
+
+// MARK: - Scheduled Clear Manager
+class ScheduledClearManager: ObservableObject {
+    private var isLoading = true // Prevent saving during initialization
+    
+    @Published var isEnabled: Bool = false {
+        didSet { if !isLoading { saveSettings() } }
+    }
+    @Published var clearInterval: TimeInterval = 24 * 60 * 60 { // 24 hours default
+        didSet { if !isLoading { saveSettings() } }
+    }
+    @Published var clearOnlyUnpinned: Bool = true {
+        didSet { if !isLoading { saveSettings() } }
+    }
+    
+    private var clearTimer: Timer?
+    private weak var clipboardManager: ClipboardManager?
+    
+    enum ClearInterval: String, CaseIterable {
+        case oneHour = "1 Hour"
+        case sixHours = "6 Hours" 
+        case twelveHours = "12 Hours"
+        case oneDay = "1 Day"
+        case threeDays = "3 Days"
+        case oneWeek = "1 Week"
+        
+        var timeInterval: TimeInterval {
+            switch self {
+            case .oneHour: return 60 * 60
+            case .sixHours: return 6 * 60 * 60
+            case .twelveHours: return 12 * 60 * 60
+            case .oneDay: return 24 * 60 * 60
+            case .threeDays: return 3 * 24 * 60 * 60
+            case .oneWeek: return 7 * 24 * 60 * 60
+            }
+        }
+    }
+    
+    init(clipboardManager: ClipboardManager) {
+        self.clipboardManager = clipboardManager
+        loadSettings()
+        setupTimer()
+        isLoading = false // Enable auto-saving after initial load
+    }
+    
+    private func loadSettings() {
+        isEnabled = UserDefaults.standard.bool(forKey: "ScheduledClearEnabled")
+        clearInterval = UserDefaults.standard.double(forKey: "ScheduledClearInterval")
+        if clearInterval == 0 { clearInterval = 24 * 60 * 60 }
+        clearOnlyUnpinned = UserDefaults.standard.bool(forKey: "ScheduledClearOnlyUnpinned")
+    }
+    
+    func saveSettings() {
+        UserDefaults.standard.set(isEnabled, forKey: "ScheduledClearEnabled")
+        UserDefaults.standard.set(clearInterval, forKey: "ScheduledClearInterval")
+        UserDefaults.standard.set(clearOnlyUnpinned, forKey: "ScheduledClearOnlyUnpinned")
+        
+        // Force synchronization to disk immediately
+        UserDefaults.standard.synchronize()
+        
+        setupTimer()
+    }
+    
+    private func setupTimer() {
+        clearTimer?.invalidate()
+        
+        guard isEnabled else { return }
+        
+        clearTimer = Timer.scheduledTimer(withTimeInterval: clearInterval, repeats: true) { [weak self] _ in
+            self?.performScheduledClear()
+        }
+    }
+    
+    private func performScheduledClear() {
+        guard let clipboardManager = clipboardManager else { return }
+        
+        let cutoffDate = Date().addingTimeInterval(-clearInterval)
+        
+        if clearOnlyUnpinned {
+            clipboardManager.items.removeAll { item in
+                !item.isPinned && item.timestamp < cutoffDate
+            }
+        } else {
+            clipboardManager.items.removeAll { item in
+                item.timestamp < cutoffDate
+            }
+        }
+        
+        clipboardManager.saveItems()
+        
+        // Show notification
+        let notification = NSUserNotification()
+        notification.title = "Clipboard Cleared"
+        notification.informativeText = "Old clipboard items have been automatically cleared"
+        notification.soundName = nil
+        NSUserNotificationCenter.default.deliver(notification)
+    }
+    
+    func toggleScheduledClear(_ enabled: Bool) {
+        isEnabled = enabled
+        saveSettings()
+    }
+    
+    func setClearInterval(_ interval: ClearInterval) {
+        clearInterval = interval.timeInterval
+        saveSettings()
+    }
+}
+
+// MARK: - Integration Manager
+class IntegrationManager: ObservableObject {
+    private var isLoading = true // Prevent saving during initialization
+    
+    @Published var slackWebhookURL: String = "" {
+        didSet { if !isLoading { saveSettings() } }
+    }
+    @Published var discordWebhookURL: String = "" {
+        didSet { if !isLoading { saveSettings() } }
+    }
+    @Published var defaultEmailApp: EmailApp = .mail {
+        didSet { if !isLoading { saveSettings() } }
+    }
+    @Published var defaultNotesApp: NotesApp = .notes {
+        didSet { if !isLoading { saveSettings() } }
+    }
+    
+    enum EmailApp: String, CaseIterable {
+        case mail = "Mail"
+        case outlook = "Microsoft Outlook"
+        case gmail = "Gmail"
+        case spark = "Spark"
+        
+        var bundleID: String {
+            switch self {
+            case .mail: return "com.apple.mail"
+            case .outlook: return "com.microsoft.Outlook"
+            case .gmail: return "com.google.Gmail"
+            case .spark: return "com.readdle.smartemail-Mac"
+            }
+        }
+    }
+    
+    enum NotesApp: String, CaseIterable {
+        case notes = "Notes"
+        case notion = "Notion"
+        case obsidian = "Obsidian"
+        case bear = "Bear"
+        case devonthink = "DEVONthink"
+        
+        var bundleID: String {
+            switch self {
+            case .notes: return "com.apple.Notes"
+            case .notion: return "notion.id"
+            case .obsidian: return "md.obsidian"
+            case .bear: return "net.shinyfrog.bear"
+            case .devonthink: return "com.devon-technologies.think3"
+            }
+        }
+        
+        var urlScheme: String? {
+            switch self {
+            case .notes: return "notes://"
+            case .notion: return "notion://"
+            case .obsidian: return "obsidian://"
+            case .bear: return "bear://"
+            case .devonthink: return "x-devonthink://"
+            }
+        }
+    }
+    
+    init() {
+        loadSettings()
+        isLoading = false // Enable auto-saving after initial load
+    }
+    
+    private func loadSettings() {
+        slackWebhookURL = UserDefaults.standard.string(forKey: "SlackWebhookURL") ?? ""
+        discordWebhookURL = UserDefaults.standard.string(forKey: "DiscordWebhookURL") ?? ""
+        if let emailAppString = UserDefaults.standard.string(forKey: "DefaultEmailApp"),
+           let emailApp = EmailApp(rawValue: emailAppString) {
+            defaultEmailApp = emailApp
+        }
+        if let notesAppString = UserDefaults.standard.string(forKey: "DefaultNotesApp"),
+           let notesApp = NotesApp(rawValue: notesAppString) {
+            defaultNotesApp = notesApp
+        }
+    }
+    
+    func saveSettings() {
+        UserDefaults.standard.set(slackWebhookURL, forKey: "SlackWebhookURL")
+        UserDefaults.standard.set(discordWebhookURL, forKey: "DiscordWebhookURL")
+        UserDefaults.standard.set(defaultEmailApp.rawValue, forKey: "DefaultEmailApp")
+        UserDefaults.standard.set(defaultNotesApp.rawValue, forKey: "DefaultNotesApp")
+        
+        // Force synchronization to disk immediately
+        UserDefaults.standard.synchronize()
+    }
+    
+    // MARK: - Slack Integration
+    func shareToSlack(_ content: String, channel: String = "#general") {
+        guard !slackWebhookURL.isEmpty, let url = URL(string: slackWebhookURL) else {
+            showError("Slack webhook URL not configured")
+            return
+        }
+        
+        let payload = [
+            "text": content,
+            "channel": channel,
+            "username": "Clipboard Manager",
+            "icon_emoji": ":clipboard:"
+        ]
+        
+        sendWebhookMessage(to: url, payload: payload, service: "Slack")
+    }
+    
+    // MARK: - Discord Integration
+    func shareToDiscord(_ content: String) {
+        guard !discordWebhookURL.isEmpty, let url = URL(string: discordWebhookURL) else {
+            showError("Discord webhook URL not configured")
+            return
+        }
+        
+        let payload = [
+            "content": content,
+            "username": "Clipboard Manager"
+        ]
+        
+        sendWebhookMessage(to: url, payload: payload, service: "Discord")
+    }
+    
+    private func sendWebhookMessage(to url: URL, payload: [String: Any], service: String) {
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+        } catch {
+            showError("Failed to encode message for \(service)")
+            return
+        }
+        
+        URLSession.shared.dataTask(with: request) { _, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    self.showError("Failed to send to \(service): \(error.localizedDescription)")
+                } else if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                    self.showSuccess("Sent to \(service) successfully!")
+                } else {
+                    self.showError("Failed to send to \(service)")
+                }
+            }
+        }.resume()
+    }
+    
+    // MARK: - Email Integration
+    func composeEmail(with content: String, subject: String = "Shared from Clipboard") {
+        let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let encodedBody = content.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        
+        switch defaultEmailApp {
+        case .mail:
+            let mailtoURL = "mailto:?subject=\(encodedSubject)&body=\(encodedBody)"
+            if let url = URL(string: mailtoURL) {
+                NSWorkspace.shared.open(url)
+            }
+        case .outlook, .gmail, .spark:
+            // Try to open the specific app
+            if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: defaultEmailApp.bundleID) {
+                let mailtoURL = "mailto:?subject=\(encodedSubject)&body=\(encodedBody)"
+                if let url = URL(string: mailtoURL) {
+                    NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration()) { _, _ in }
+                }
+            } else {
+                showError("\(defaultEmailApp.rawValue) is not installed")
+            }
+        }
+    }
+    
+    // MARK: - Notes Integration
+    func saveToNotes(_ content: String, title: String = "Clipboard Item") {
+        let success: Bool
+        
+        switch defaultNotesApp {
+        case .notes:
+            // Use Notes URL scheme
+            let encodedTitle = title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+            let encodedContent = content.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+            if let url = URL(string: "notes://new?title=\(encodedTitle)&content=\(encodedContent)") {
+                success = NSWorkspace.shared.open(url)
+            } else {
+                success = false
+            }
+        case .notion:
+            // Open Notion with content in clipboard
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(content, forType: .string)
+            if let url = URL(string: "notion://new") {
+                success = NSWorkspace.shared.open(url)
+            } else {
+                success = false
+            }
+        case .obsidian:
+            // Create new note in Obsidian
+            let encodedTitle = title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+            let encodedContent = content.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+            if let url = URL(string: "obsidian://new?name=\(encodedTitle)&content=\(encodedContent)") {
+                success = NSWorkspace.shared.open(url)
+            } else {
+                success = false
+            }
+        case .bear:
+            // Create new note in Bear
+            let encodedTitle = title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+            let encodedContent = content.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+            if let url = URL(string: "bear://x-callback-url/create?title=\(encodedTitle)&text=\(encodedContent)") {
+                success = NSWorkspace.shared.open(url)
+            } else {
+                success = false
+            }
+        case .devonthink:
+            // Create new document in DEVONthink
+            let encodedTitle = title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+            let encodedContent = content.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+            if let url = URL(string: "x-devonthink://createText?title=\(encodedTitle)&text=\(encodedContent)") {
+                success = NSWorkspace.shared.open(url)
+            } else {
+                success = false
+            }
+        }
+        
+        // Show feedback to user
+        if success {
+            showSuccess("Opened \(defaultNotesApp.rawValue) successfully!")
+        } else {
+            showError("Failed to open \(defaultNotesApp.rawValue). Make sure it's installed.")
+        }
+    }
+    
+    private func showError(_ message: String) {
+        let notification = NSUserNotification()
+        notification.title = "Integration Error"
+        notification.informativeText = message
+        notification.soundName = NSUserNotificationDefaultSoundName
+        NSUserNotificationCenter.default.deliver(notification)
+    }
+    
+    private func showSuccess(_ message: String) {
+        let notification = NSUserNotification()
+        notification.title = "Success"
+        notification.informativeText = message
+        notification.soundName = nil
+        NSUserNotificationCenter.default.deliver(notification)
     }
 }

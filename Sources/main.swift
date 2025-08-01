@@ -96,10 +96,11 @@ struct CustomClipboardIcon: View {
     private func loadCustomIcon() -> NSImage? {
         // Try to load high-quality icons from different sources
         let iconPaths = [
-            "/Users/salim/Downloads/copy clipboard /logos/Assets.xcassets/AppIcon.appiconset/32.png",
-            "/Users/salim/Downloads/copy clipboard /logos/Assets.xcassets/AppIcon.appiconset/16.png",
-            "/Users/salim/Downloads/copy clipboard /clipboard-logo.png"
-        ]
+            Bundle.main.path(forResource: "32", ofType: "png", inDirectory: "Assets.xcassets/AppIcon.appiconset"),
+            Bundle.main.path(forResource: "16", ofType: "png", inDirectory: "Assets.xcassets/AppIcon.appiconset"),
+            Bundle.main.path(forResource: "AppIcon", ofType: "icns"),
+            Bundle.main.path(forResource: "clipboard-logo", ofType: "png")
+        ].compactMap { $0 }
         
         for iconPath in iconPaths {
             if let logoImage = NSImage(contentsOfFile: iconPath) {

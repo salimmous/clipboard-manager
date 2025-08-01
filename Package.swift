@@ -7,7 +7,7 @@ import PackageDescription
 let package = Package(
     name: "ClipboardManager",
     platforms: [
-        .macOS(.v13)
+        .macOS(.v13) // Supports macOS 13.0 (Ventura) and later
     ],
     products: [
         .executable(

@@ -1,84 +1,28 @@
 # Changelog
 
-All notable changes to ClipboardManager will be documented in this file.
+All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
-## [1.1.11] - 2025-07-29
-### Fixed
-- Bug fixes and improvements
-
-
-## [1.1.10] - 2025-07-28
-### Fixed
-- Bug fixes and improvements
-
-
-## [1.1.9] - 2025-07-28
-### Fixed
-- Bug fixes and improvements
-
-
-## [1.1.8] - 2025-07-28
-### Fixed
-- Bug fixes and improvements
-
-
-## [1.1.7] - 2025-07-28
-### Fixed
-- Bug fixes and improvements
-
-
-## [1.1.6] - 2025-07-28
-### Fixed
-- Bug fixes and improvements
-
-
-## [1.1.5] - 2025-07-28
-### Fixed
-- Bug fixes and improvements
-
-
-## [1.1.4] - 2025-07-28
-### Fixed
-- Bug fixes and improvements
-
-
-## [1.1.3] - 2025-07-28
-### Fixed
-- Bug fixes and improvements
-
-
-## [1.1.2] - 2025-07-28
-### Fixed
-- Bug fixes and improvements
-
-
-## [1.1.1] - 2025-07-28
-### Fixed
-- Bug fixes and improvements
-
-
-## [1.1.0] - 2025-07-27
+## [1.1.12] - 2025-08-01
 ### Added
-- Professional icon set with high-quality branding
-- Global installation support for all macOS users
-- New global-install.sh script for system-wide deployment
-- Enhanced installation guide with both user and global options
-- Automated installation scripts with macOS version checking
+- Universal binary support (Intel x86_64 + Apple Silicon arm64)
+- Professional DMG installer generation via Makefile
+- Automated installation script (`install.sh`)
+- Entitlements file for proper permissions (`ClipboardManager.entitlements`)
 
 ### Changed
-- Updated minimum macOS requirement to 13.0 (Ventura) for modern SwiftUI features
-- Improved DMG installer with professional icons
-- Enhanced security with proper permission management for global installations
+- Build system updated to produce a true universal binary (separate arch builds + lipo)
+- `Info.plist` version bump to 1.1.12
+- Resource loading updated to use bundle paths (no hardcoded user paths)
+- Makefile enhanced with `build-intel`, `build-arm64`, `create-universal`, `app-bundle`, and `create-dmg`
 
 ### Fixed
-- Compatibility issues with macOS 13.0+ SwiftUI components
-- Icon display consistency across different macOS versions
+- Removed hardcoded absolute image/icon paths from `Sources/main.swift`
+- Addressed DMG unmount reliability during creation
 
+### Notes
+- Compatible with macOS 13.0+ (Ventura and later)
+- Ready for global distribution; works on any Mac
 
-## [1.0.4] - 2025-07-21
-### Fixed
-- Bug fixes and improvements
-
-
+[1.1.12]: https://github.com/salimmous/clipboard-manager/releases/tag/v1.1.12

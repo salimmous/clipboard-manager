@@ -156,6 +156,7 @@ curl -fsSL https://raw.githubusercontent.com/salimmous/clipboard-manager/main/gl
 - 📦 [All Releases](https://github.com/salimmous/clipboard-manager/releases)
 - 🔄 [Latest Release](https://github.com/salimmous/clipboard-manager/releases/latest)
 - 💾 [Direct DMG Download](https://github.com/salimmous/clipboard-manager/releases/latest/download/ClipboardManager-1.1.12-Installer.dmg)
+- 📝 [Changelog](https://github.com/salimmous/clipboard-manager/blob/main/CHANGELOG.md)
 
 ---
 

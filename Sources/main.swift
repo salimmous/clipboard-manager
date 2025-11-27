@@ -22,25 +22,40 @@ struct ClipboardManagerApp: App {
 }
 
 // MARK: - App Delegate
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private var hotKeyRef: EventHotKeyRef?
     private var eventHandler: EventHandlerRef?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Hide dock icon to run as a background utility
-        NSApp.setActivationPolicy(.accessory)
+        // Request notification permissions
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
+            if let error = error {
+                print("Notification permission error: \(error)")
+            }
+        }
+        UNUserNotificationCenter.current().delegate = self
         
-        // Start clipboard monitoring
-        ClipboardManager.shared.startMonitoring()
+        // Setup notification categories for update actions
+        let updateAction = UNNotificationAction(identifier: "UPDATE_NOW", title: "Update Now", options: .foreground)
+        let laterAction = UNNotificationAction(identifier: "LATER", title: "Later", options: [])
+        let updateCategory = UNNotificationCategory(identifier: "UPDATE_CATEGORY", actions: [updateAction, laterAction], intentIdentifiers: [], options: [])
+        UNUserNotificationCenter.current().setNotificationCategories([updateCategory])
         
-        // Register global hotkey (Command+X)
+        // Set up global hotkey
         registerGlobalHotkey()
+        
+        // Initialize managers
+        _ = ClipboardManager.shared
+        _ = AppUpdateManager.shared
         
         // Start auto-update checking if enabled
         let settings = AppSettings()
         if settings.autoUpdateEnabled {
             AppUpdateManager.shared.startPeriodicCheck()
         }
+        
+        // Hide dock icon
+        NSApp.setActivationPolicy(.accessory)
     }
     
     func applicationWillTerminate(_ notification: Notification) {
@@ -50,6 +65,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // Prevent app from terminating when last window is closed
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
+    }
+    
+    
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound])
+    }
+    
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        if response.notification.request.identifier == "UpdateAvailable" {
+            if response.actionIdentifier == "UPDATE_NOW" || response.actionIdentifier == UNNotificationDefaultActionIdentifier {
+                // User tapped notification or "Update Now" button
+                DispatchQueue.main.async {
+                    AppUpdateManager.shared.downloadAndInstallUpdate()
+                }
+            }
+        }
+        completionHandler()
     }
     
     private func registerGlobalHotkey() {
@@ -257,6 +289,18 @@ class AppSettings: ObservableObject {
     @Published var showNotifications: Bool = true {
         didSet { if !isLoading { saveSettings() } }
     }
+    @Published var watchScreenshots: Bool = false {
+        didSet { if !isLoading { saveSettings() } }
+    }
+    @Published var globalHotkey: String = "⌘X" {
+        didSet { if !isLoading { saveSettings() } }
+    }
+    @Published var enableSmartDetection: Bool = true {
+        didSet { if !isLoading { saveSettings() } }
+    }
+    @Published var enableiCloudSync: Bool = false {
+        didSet { if !isLoading { saveSettings() } }
+    }
     
     init() {
         loadSettings()
@@ -286,6 +330,10 @@ class AppSettings: ObservableObject {
         self.autoInstallUpdates = UserDefaults.standard.bool(forKey: "AutoInstallUpdates")
         self.compactMode = UserDefaults.standard.bool(forKey: "CompactMode")
         self.showNotifications = UserDefaults.standard.bool(forKey: "ShowNotifications")
+        self.watchScreenshots = UserDefaults.standard.bool(forKey: "WatchScreenshots")
+        self.globalHotkey = UserDefaults.standard.string(forKey: "GlobalHotkey") ?? "⌘X"
+        self.enableSmartDetection = UserDefaults.standard.bool(forKey: "EnableSmartDetection")
+        self.enableiCloudSync = UserDefaults.standard.bool(forKey: "EnableiCloudSync")
         
         let savedCheckInterval = UserDefaults.standard.double(forKey: "CheckUpdateInterval")
         if savedCheckInterval > 0 {
@@ -301,6 +349,10 @@ class AppSettings: ObservableObject {
         UserDefaults.standard.set(autoInstallUpdates, forKey: "AutoInstallUpdates")
         UserDefaults.standard.set(compactMode, forKey: "CompactMode")
         UserDefaults.standard.set(showNotifications, forKey: "ShowNotifications")
+        UserDefaults.standard.set(watchScreenshots, forKey: "WatchScreenshots")
+        UserDefaults.standard.set(globalHotkey, forKey: "GlobalHotkey")
+        UserDefaults.standard.set(enableSmartDetection, forKey: "EnableSmartDetection")
+        UserDefaults.standard.set(enableiCloudSync, forKey: "EnableiCloudSync")
         UserDefaults.standard.set(checkUpdateInterval, forKey: "CheckUpdateInterval")
         
         // Force synchronization to disk immediately
@@ -315,8 +367,10 @@ class AppSettings: ObservableObject {
         if autoUpdateEnabled {
             AppUpdateManager.shared.startPeriodicCheck()
         } else {
-            AppUpdateManager.shared.stopPeriodicCheck()
         }
+        
+        // Update screenshot watching
+        ClipboardManager.shared.updateScreenshotWatching()
     }
     
     private func applyAppearanceMode() {
@@ -343,7 +397,7 @@ class AppUpdateManager: ObservableObject {
     @Published var isChecking = false
     
     private var updateTimer: Timer?
-    private let currentVersion = "1.1.11"
+    private let currentVersion = "1.1.12"
     private let updateCheckURL = "https://api.github.com/repos/salimmous/clipboard-manager/releases/latest"
     
     private init() {}
@@ -416,28 +470,64 @@ class AppUpdateManager: ObservableObject {
     }
     
     private func showUpdateNotification() {
-        let notification = NSUserNotification()
-        notification.title = "New Update Available"
-        notification.informativeText = "Version \(latestVersion) of Clipboard Manager is now available"
-        notification.soundName = NSUserNotificationDefaultSoundName
-        notification.hasActionButton = true
-        notification.actionButtonTitle = "Update"
-        notification.otherButtonTitle = "Later"
+        let content = UNMutableNotificationContent()
+        content.title = "🎉 New Update Available!"
+        content.body = "Version \(latestVersion) is ready to install. Tap to update now."
+        content.sound = .default
+        content.categoryIdentifier = "UPDATE_CATEGORY"
         
-        NSUserNotificationCenter.default.deliver(notification)
+        let request = UNNotificationRequest(identifier: "UpdateAvailable", content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Error showing update notification: \(error)")
+            }
+        }
     }
     
     func downloadAndInstallUpdate() {
         guard let url = URL(string: downloadURL) else { return }
         
+        // Show download started notification
+        let startContent = UNMutableNotificationContent()
+        startContent.title = "⬇️ Downloading Update"
+        startContent.body = "Version \(latestVersion) is being downloaded..."
+        let startRequest = UNNotificationRequest(identifier: "UpdateDownloading", content: startContent, trigger: nil)
+        UNUserNotificationCenter.current().add(startRequest)
+        
         let task = URLSession.shared.downloadTask(with: url) { [weak self] localURL, response, error in
+            if let error = error {
+                DispatchQueue.main.async {
+                    self?.showDownloadError(error)
+                }
+                return
+            }
+            
             guard let localURL = localURL else { return }
             
             DispatchQueue.main.async {
+                // Remove downloading notification
+                UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["UpdateDownloading"])
+                
+                // Show download complete notification
+                let completeContent = UNMutableNotificationContent()
+                completeContent.title = "✅ Download Complete"
+                completeContent.body = "Ready to install version \(self?.latestVersion ?? "")"
+                let completeRequest = UNNotificationRequest(identifier: "UpdateDownloaded", content: completeContent, trigger: nil)
+                UNUserNotificationCenter.current().add(completeRequest)
+                
                 self?.installUpdate(from: localURL)
             }
         }
         task.resume()
+    }
+    
+    private func showDownloadError(_ error: Error) {
+        let content = UNMutableNotificationContent()
+        content.title = "❌ Update Failed"
+        content.body = "Failed to download update: \(error.localizedDescription)"
+        content.sound = .default
+        let request = UNNotificationRequest(identifier: "UpdateError", content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request)
     }
     
     private func installUpdate(from url: URL) {
@@ -473,7 +563,8 @@ class AppUpdateManager: ObservableObject {
     
     private func autoInstallAndRestart(from url: URL) {
         // Get current app bundle path
-        let currentAppPath = Bundle.main.bundlePath
+        // Get current app bundle path
+        _ = Bundle.main.bundlePath
         let applicationsURL = URL(fileURLWithPath: "/Applications")
         let targetAppURL = applicationsURL.appendingPathComponent("ClipboardManager.app")
         
@@ -601,11 +692,218 @@ extension String {
     }
 }
 
+// MARK: - Screenshot Watcher
+class ScreenshotWatcher: ObservableObject {
+    private var source: DispatchSourceFileSystemObject?
+    private let fileManager = FileManager.default
+    private var lastKnownFiles: Set<String> = []
+    private var desktopURL: URL? {
+        fileManager.urls(for: .desktopDirectory, in: .userDomainMask).first
+    }
+    
+    func startWatching() {
+        stopWatching() // Ensure no duplicates
+        
+        guard let desktopURL = desktopURL else { return }
+        
+        // Initial scan to avoid processing existing files
+        updateLastKnownFiles(in: desktopURL)
+        
+        let descriptor = open(desktopURL.path, O_EVTONLY)
+        guard descriptor > 0 else { return }
+        
+        source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: descriptor, eventMask: .write, queue: DispatchQueue.global())
+        
+        source?.setEventHandler { [weak self] in
+            self?.checkForNewScreenshots()
+        }
+        
+        source?.setCancelHandler {
+            close(descriptor)
+        }
+        
+        source?.resume()
+        print("Started watching screenshots at \(desktopURL.path)")
+    }
+    
+    func stopWatching() {
+        source?.cancel()
+        source = nil
+    }
+    
+    private func updateLastKnownFiles(in directory: URL) {
+        guard let files = try? fileManager.contentsOfDirectory(atPath: directory.path) else { return }
+        lastKnownFiles = Set(files)
+    }
+    
+    private func checkForNewScreenshots() {
+        guard let directory = desktopURL,
+              let currentFiles = try? fileManager.contentsOfDirectory(atPath: directory.path) else { return }
+        
+        let currentFileSet = Set(currentFiles)
+        let newFiles = currentFileSet.subtracting(lastKnownFiles)
+        lastKnownFiles = currentFileSet
+        
+        for file in newFiles {
+            // Check for common screenshot naming patterns and extensions
+            // macOS default: "Screenshot 2023-..."
+            if (file.hasPrefix("Screenshot") || file.hasPrefix("Capture")) && 
+               (file.hasSuffix(".png") || file.hasSuffix(".jpg") || file.hasSuffix(".jpeg") || file.hasSuffix(".heic")) {
+                
+                // Found a new screenshot!
+                let fileURL = directory.appendingPathComponent(file)
+                
+                // Wait a brief moment for the file to be fully written
+                DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) {
+                    if let data = try? Data(contentsOf: fileURL) {
+                        DispatchQueue.main.async {
+                            ClipboardManager.shared.addScreenshotItem(data)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Smart Detector
+class SmartDetector {
+    static func detectEntities(in text: String) -> [DetectedEntity] {
+        var entities: [DetectedEntity] = []
+        
+        // Email detection
+        let emailPattern = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
+        if let emailRegex = try? NSRegularExpression(pattern: emailPattern) {
+            let matches = emailRegex.matches(in: text, range: NSRange(text.startIndex..., in: text))
+            for match in matches {
+                if let range = Range(match.range, in: text) {
+                    let email = String(text[range])
+                    entities.append(DetectedEntity(type: .email, value: email, range: "\(match.range.location)-\(match.range.length)"))
+                }
+            }
+        }
+        
+        // Phone number detection (various formats)
+        let phonePatterns = [
+            "\\+?\\d{1,3}[-.\\s]?\\(?\\d{1,4}\\)?[-.\\s]?\\d{1,4}[-.\\s]?\\d{1,9}", // International
+            "\\(\\d{3}\\)\\s?\\d{3}-\\d{4}", // (123) 456-7890
+            "\\d{3}-\\d{3}-\\d{4}", // 123-456-7890
+            "\\d{10}" // 1234567890
+        ]
+        
+        for pattern in phonePatterns {
+            if let phoneRegex = try? NSRegularExpression(pattern: pattern) {
+                let matches = phoneRegex.matches(in: text, range: NSRange(text.startIndex..., in: text))
+                for match in matches {
+                    if let range = Range(match.range, in: text) {
+                        let phone = String(text[range])
+                        // Only add if it looks like a valid phone (at least 10 digits)
+                        let digits = phone.filter { $0.isNumber }
+                        if digits.count >= 10 {
+                            entities.append(DetectedEntity(type: .phone, value: phone, range: "\(match.range.location)-\(match.range.length)"))
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Address detection (simplified - looks for street patterns)
+        let addressPattern = "\\d+\\s+[A-Za-z0-9\\s,]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr|Court|Ct|Circle|Cir|Way)"
+        if let addressRegex = try? NSRegularExpression(pattern: addressPattern, options: .caseInsensitive) {
+            let matches = addressRegex.matches(in: text, range: NSRange(text.startIndex..., in: text))
+            for match in matches {
+                if let range = Range(match.range, in: text) {
+                    let address = String(text[range])
+                    entities.append(DetectedEntity(type: .address, value: address, range: "\(match.range.location)-\(match.range.length)"))
+                }
+            }
+        }
+        
+        return entities
+    }
+    
+    static func performAction(for entity: DetectedEntity) {
+        switch entity.type {
+        case .email:
+            // Open default email client
+            if let url = URL(string: "mailto:\(entity.value)") {
+                NSWorkspace.shared.open(url)
+            }
+        case .phone:
+            // Copy to clipboard with option to call (if FaceTime is available)
+            let cleanPhone = entity.value.filter { $0.isNumber || $0 == "+" }
+            if let url = URL(string: "tel:\(cleanPhone)") {
+                NSWorkspace.shared.open(url)
+            }
+        case .address:
+            // Open in Maps
+            let encodedAddress = entity.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+            if let url = URL(string: "http://maps.apple.com/?q=\(encodedAddress)") {
+                NSWorkspace.shared.open(url)
+            }
+        case .none:
+            break
+        }
+    }
+}
+
 // MARK: - Clipboard Item Model
 enum ClipboardItemType: String, Codable {
     case text = "text"
     case image = "image"
     case url = "url"
+}
+
+enum DetectedEntityType: String, Codable {
+    case email = "email"
+    case phone = "phone"
+    case address = "address"
+    case none = "none"
+}
+
+struct DetectedEntity: Codable, Hashable {
+    let type: DetectedEntityType
+    let value: String
+    let range: String // Store as string since NSRange isn't Codable
+}
+
+// MARK: - Image Storage Manager
+class ImageStorageManager {
+    static let shared = ImageStorageManager()
+    private let fileManager = FileManager.default
+    
+    private var imagesDirectory: URL? {
+        guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
+        let directory = appSupport.appendingPathComponent("ClipboardManager/Images")
+        try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+    
+    func saveImage(_ data: Data) -> String? {
+        guard let directory = imagesDirectory else { return nil }
+        let fileName = UUID().uuidString + ".tiff"
+        let fileURL = directory.appendingPathComponent(fileName)
+        
+        do {
+            try data.write(to: fileURL)
+            return fileName
+        } catch {
+            print("Error saving image: \(error)")
+            return nil
+        }
+    }
+    
+    func loadImage(fileName: String) -> Data? {
+        guard let directory = imagesDirectory else { return nil }
+        let fileURL = directory.appendingPathComponent(fileName)
+        return try? Data(contentsOf: fileURL)
+    }
+    
+    func deleteImage(fileName: String) {
+        guard let directory = imagesDirectory else { return }
+        let fileURL = directory.appendingPathComponent(fileName)
+        try? fileManager.removeItem(at: fileURL)
+    }
 }
 
 struct ClipboardItem: Identifiable, Codable, Hashable {
@@ -614,7 +912,21 @@ struct ClipboardItem: Identifiable, Codable, Hashable {
     let type: ClipboardItemType
     var isPinned: Bool
     let timestamp: Date
-    var imageData: Data?
+    var imageFileName: String?
+    var detectedEntities: [DetectedEntity] = []
+    
+    // Computed property for backward compatibility and easy access
+    var imageData: Data? {
+        if let fileName = imageFileName {
+            return ImageStorageManager.shared.loadImage(fileName: fileName)
+        }
+        return nil
+    }
+    
+    // Custom coding keys to handle migration
+    enum CodingKeys: String, CodingKey {
+        case id, content, type, isPinned, timestamp, imageFileName, imageData, detectedEntities
+    }
     
     // Simplified init for text
     init(content: String, isPinned: Bool = false) {
@@ -623,17 +935,18 @@ struct ClipboardItem: Identifiable, Codable, Hashable {
         self.type = .text
         self.isPinned = isPinned
         self.timestamp = Date()
-        self.imageData = nil
+        self.imageFileName = nil
+        self.detectedEntities = SmartDetector.detectEntities(in: content)
     }
     
     // Init for images
-    init(imageData: Data, isPinned: Bool = false) {
+    init(imageFileName: String, isPinned: Bool = false) {
         self.id = UUID()
-        self.content = "Image (\(ByteCountFormatter.string(fromByteCount: Int64(imageData.count), countStyle: .file)))"
+        self.content = "Image"
         self.type = .image
         self.isPinned = isPinned
         self.timestamp = Date()
-        self.imageData = imageData
+        self.imageFileName = imageFileName
     }
     
     // Init for URLs
@@ -643,17 +956,62 @@ struct ClipboardItem: Identifiable, Codable, Hashable {
         self.type = .url
         self.isPinned = isPinned
         self.timestamp = Date()
-        self.imageData = nil
+        self.imageFileName = nil
+        self.detectedEntities = []
     }
     
-    // Complete initializer for sync
-    init(id: UUID, content: String, type: ClipboardItemType, isPinned: Bool, timestamp: Date, imageData: Data?) {
+    // Complete init for iCloud sync
+    init(id: UUID, content: String, type: ClipboardItemType, isPinned: Bool, timestamp: Date, imageFileName: String?, detectedEntities: [DetectedEntity]) {
         self.id = id
         self.content = content
         self.type = type
         self.isPinned = isPinned
         self.timestamp = timestamp
-        self.imageData = imageData
+        self.imageFileName = imageFileName
+        self.detectedEntities = detectedEntities
+    }
+    
+    // Custom decoding for migration
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        content = try container.decode(String.self, forKey: .content)
+        type = try container.decode(ClipboardItemType.self, forKey: .type)
+        isPinned = try container.decode(Bool.self, forKey: .isPinned)
+        timestamp = try container.decode(Date.self, forKey: .timestamp)
+        
+        let decodedFileName = try container.decodeIfPresent(String.self, forKey: .imageFileName)
+        let decodedImageData = try container.decodeIfPresent(Data.self, forKey: .imageData)
+        
+        if let fileName = decodedFileName {
+            self.imageFileName = fileName
+        } else if let data = decodedImageData {
+            // Migration: Save old data to disk
+            self.imageFileName = ImageStorageManager.shared.saveImage(data)
+        } else {
+            self.imageFileName = nil
+        }
+        
+        // Decode detected entities or detect them if not present
+        if let entities = try container.decodeIfPresent([DetectedEntity].self, forKey: .detectedEntities) {
+            self.detectedEntities = entities
+        } else if type == .text {
+            self.detectedEntities = SmartDetector.detectEntities(in: content)
+        } else {
+            self.detectedEntities = []
+        }
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(content, forKey: .content)
+        try container.encode(type, forKey: .type)
+        try container.encode(isPinned, forKey: .isPinned)
+        try container.encode(timestamp, forKey: .timestamp)
+        try container.encode(imageFileName, forKey: .imageFileName)
+        try container.encode(detectedEntities, forKey: .detectedEntities)
+        // Do NOT encode imageData
     }
     
     var displayContent: String {
@@ -661,7 +1019,10 @@ struct ClipboardItem: Identifiable, Codable, Hashable {
         case .text, .url:
             return content
         case .image:
-            return content // Already formatted in init
+            if let data = imageData {
+                return "Image (\(ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .file)))"
+            }
+            return "Image"
         }
     }
     
@@ -695,13 +1056,17 @@ class ClipboardManager: ObservableObject {
     @Published var iCloudSync: iCloudSyncManager!
     @Published var scheduledClear: ScheduledClearManager!
     @Published var integrations: IntegrationManager!
+    @Published var screenshotWatcher: ScreenshotWatcher!
     
     private init() {
         // Initialize managers after self is available
         DispatchQueue.main.async {
             self.iCloudSync = iCloudSyncManager()
+            self.iCloudSync = iCloudSyncManager()
             self.scheduledClear = ScheduledClearManager(clipboardManager: self)
             self.integrations = IntegrationManager()
+            self.screenshotWatcher = ScreenshotWatcher()
+            self.updateScreenshotWatching()
         }
         
         loadItems()
@@ -740,6 +1105,15 @@ class ClipboardManager: ObservableObject {
         startMonitoring()
     }
     
+    func updateScreenshotWatching() {
+        let settings = AppSettings()
+        if settings.watchScreenshots {
+            screenshotWatcher?.startWatching()
+        } else {
+            screenshotWatcher?.stopWatching()
+        }
+    }
+    
     private func checkClipboard() {
         if NSPasteboard.general.changeCount != lastChangeCount {
             lastChangeCount = NSPasteboard.general.changeCount
@@ -747,8 +1121,11 @@ class ClipboardManager: ObservableObject {
             let pasteboard = NSPasteboard.general
             
             // Check for images first
-            if let imageData = pasteboard.data(forType: .tiff) ?? pasteboard.data(forType: .png) {
-                addImageItem(imageData: imageData)
+            // Use NSImage to handle various formats (TIFF, PNG, JPEG, HEIC, etc.)
+            if pasteboard.canReadObject(forClasses: [NSImage.self], options: nil),
+               let image = NSImage(pasteboard: pasteboard),
+               let tiffData = image.tiffRepresentation {
+                addImageItem(imageData: tiffData)
             }
             // Check for text content
             else if let string = pasteboard.string(forType: .string), !string.isEmpty {
@@ -777,15 +1154,38 @@ class ClipboardManager: ObservableObject {
     }
     
     private func addImageItem(imageData: Data) {
-        let newItem = ClipboardItem(imageData: imageData)
+        // Save image to disk
+        guard let fileName = ImageStorageManager.shared.saveImage(imageData) else { return }
+        
+        let newItem = ClipboardItem(imageFileName: fileName)
         items.insert(newItem, at: 0)
         
         if items.count > maxItems {
+            // Remove old items and their images
+            let itemsToRemove = Array(items.suffix(from: maxItems))
+            for item in itemsToRemove {
+                if let fileName = item.imageFileName {
+                    ImageStorageManager.shared.deleteImage(fileName: fileName)
+                }
+            }
             items = Array(items.prefix(maxItems))
         }
         sortItems()
         saveItems()
         showSmartNotification(for: newItem)
+    }
+    
+    func addScreenshotItem(_ imageData: Data) {
+        // Add to history
+        addImageItem(imageData: imageData)
+        
+        // Also copy to system clipboard so user can paste immediately
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setData(imageData, forType: .tiff)
+        
+        // Update change count to avoid duplicate processing
+        lastChangeCount = pasteboard.changeCount
     }
     
     private func addURLItem(url: String) {
@@ -812,6 +1212,12 @@ class ClipboardManager: ObservableObject {
     }
 
     func deleteAllItems() {
+        // Delete all images
+        for item in items {
+            if let fileName = item.imageFileName {
+                ImageStorageManager.shared.deleteImage(fileName: fileName)
+            }
+        }
         items.removeAll()
         saveItems()
     }
@@ -850,6 +1256,9 @@ class ClipboardManager: ObservableObject {
     }
     
     func removeItem(_ item: ClipboardItem) {
+        if let fileName = item.imageFileName {
+            ImageStorageManager.shared.deleteImage(fileName: fileName)
+        }
         items.removeAll { $0.id == item.id }
         saveItems()
     }
@@ -869,6 +1278,29 @@ class ClipboardManager: ObservableObject {
            let decodedItems = try? JSONDecoder().decode([ClipboardItem].self, from: data) {
             items = decodedItems
         }
+    }
+    
+    func mergeRemoteItems(_ remoteItems: [ClipboardItem]) {
+        // Merge remote items with local items, avoiding duplicates
+        var mergedItems = items
+        
+        for remoteItem in remoteItems {
+            // Check if item already exists locally
+            if !mergedItems.contains(where: { $0.id == remoteItem.id }) {
+                mergedItems.append(remoteItem)
+            }
+        }
+        
+        // Sort by timestamp (newest first)
+        mergedItems.sort { $0.timestamp > $1.timestamp }
+        
+        // Limit to maxItems
+        if mergedItems.count > maxItems {
+            mergedItems = Array(mergedItems.prefix(maxItems))
+        }
+        
+        items = mergedItems
+        saveItems()
     }
     
     func toggleWindow() {
@@ -932,27 +1364,24 @@ class ClipboardManager: ObservableObject {
         let settings = AppSettings()
         guard settings.showNotifications else { return }
         
-        let notification = NSUserNotification()
+        let content = UNMutableNotificationContent()
         
         switch item.type {
         case .text:
-            notification.title = "Text Copied"
-            notification.informativeText = String(item.content.prefix(50)) + (item.content.count > 50 ? "..." : "")
+            content.title = "Text Copied"
+            content.body = String(item.content.prefix(50)) + (item.content.count > 50 ? "..." : "")
         case .image:
-            notification.title = "Image Copied"
-            notification.informativeText = item.content
+            content.title = "Image Copied"
+            content.body = "Image saved to clipboard history"
         case .url:
-            notification.title = "URL Copied"
-            notification.informativeText = item.content
+            content.title = "URL Copied"
+            content.body = item.content
         }
         
-        notification.soundName = nil // Silent notification
-        NSUserNotificationCenter.default.deliver(notification)
+        content.sound = nil // Silent notification
         
-        // Auto-remove after 2 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            NSUserNotificationCenter.default.removeDeliveredNotification(notification)
-        }
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request)
     }
 }
 
@@ -2052,6 +2481,21 @@ struct GeneralSettingsView: View {
                             Toggle("", isOn: $settings.showNotifications)
                                 .toggleStyle(.switch)
                         }
+                        
+                        Divider()
+                        
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Auto-Copy Screenshots")
+                                    .font(.system(size: 14, weight: .medium))
+                                Text("Automatically copy new screenshots to clipboard")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Toggle("", isOn: $settings.watchScreenshots)
+                                .toggleStyle(.switch)
+                        }
                     }
                 }
                 .padding(20)
@@ -2183,6 +2627,84 @@ struct UpdatesSettingsView: View {
                                     .foregroundColor(.orange.opacity(0.3)),
                                 alignment: .leading
                             )
+                        }
+                    }
+                }
+                .padding(20)
+                .background(Color(NSColor.controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                
+                // Current Version & Update Status
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "info.circle.fill")
+                            .foregroundColor(.blue)
+                            .font(.system(size: 16, weight: .medium))
+                        Text("Update Status")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.primary)
+                        Spacer()
+                    }
+                    
+                    VStack(spacing: 16) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Current Version")
+                                    .font(.system(size: 14, weight: .medium))
+                                Text("v1.1.12")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            if AppUpdateManager.shared.isUpdateAvailable {
+                                VStack(alignment: .trailing, spacing: 4) {
+                                    Text("Update Available!")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundColor(.orange)
+                                    Text("v\(AppUpdateManager.shared.latestVersion)")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                }
+                            } else {
+                                Text("Up to date ✓")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.green)
+                            }
+                        }
+                        
+                        Divider()
+                        
+                        HStack {
+                            Button(action: {
+                                AppUpdateManager.shared.checkForUpdates()
+                            }) {
+                                HStack {
+                                    if AppUpdateManager.shared.isChecking {
+                                        ProgressView()
+                                            .scaleEffect(0.7)
+                                    } else {
+                                        Image(systemName: "arrow.clockwise")
+                                    }
+                                    Text(AppUpdateManager.shared.isChecking ? "Checking..." : "Check for Updates")
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(AppUpdateManager.shared.isChecking)
+                            
+                            if AppUpdateManager.shared.isUpdateAvailable {
+                                Button(action: {
+                                    AppUpdateManager.shared.downloadAndInstallUpdate()
+                                }) {
+                                    HStack {
+                                        Image(systemName: "arrow.down.circle.fill")
+                                        Text("Install Update")
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.orange)
+                            }
                         }
                     }
                 }
@@ -2704,45 +3226,153 @@ class iCloudSyncManager: ObservableObject {
     private var database: CKDatabase?
     @Published var isSyncing = false
     @Published var syncEnabled = false
+    @Published var lastSyncDate: Date?
+    
+    private let recordType = "ClipboardItem"
     
     init() {
-        // Don't initialize CloudKit by default to prevent crashes
-        // CloudKit requires proper entitlements and container setup
-        syncEnabled = false
-        print("iCloudSyncManager initialized - CloudKit disabled until proper entitlements are configured")
-        // loadSyncSettings()
+        loadSyncSettings()
+        if syncEnabled {
+            setupCloudKit()
+        }
     }
     
     private func loadSyncSettings() {
         syncEnabled = UserDefaults.standard.bool(forKey: "iCloudSyncEnabled")
+        if let lastSync = UserDefaults.standard.object(forKey: "LastSyncDate") as? Date {
+            lastSyncDate = lastSync
+        }
+    }
+    
+    private func setupCloudKit() {
+        container = CKContainer.default()
+        database = container?.privateCloudDatabase
+        checkiCloudStatus()
     }
     
     func toggleSync(_ enabled: Bool) {
-        // CloudKit is disabled until proper entitlements are configured
-        syncEnabled = false
-        print("CloudKit sync is disabled - requires proper app entitlements and container setup")
+        syncEnabled = enabled
+        UserDefaults.standard.set(enabled, forKey: "iCloudSyncEnabled")
+        
+        if enabled {
+            setupCloudKit()
+            // Perform initial sync
+            fetchRemoteItems { items in
+                // Merge with local items
+                DispatchQueue.main.async {
+                    ClipboardManager.shared.mergeRemoteItems(items)
+                }
+            }
+        } else {
+            container = nil
+            database = nil
+        }
     }
     
     private func checkiCloudStatus() {
-        // CloudKit functionality disabled to prevent crashes
-        print("iCloud status check disabled - requires proper CloudKit configuration")
-    }
-    
-    private func setupCloudKitSubscription() {
-        // CloudKit subscription disabled
-        print("CloudKit subscription disabled - requires proper configuration")
+        container?.accountStatus { status, error in
+            DispatchQueue.main.async {
+                switch status {
+                case .available:
+                    print("iCloud is available")
+                case .noAccount:
+                    print("No iCloud account")
+                    self.syncEnabled = false
+                case .restricted:
+                    print("iCloud is restricted")
+                    self.syncEnabled = false
+                case .couldNotDetermine:
+                    print("Could not determine iCloud status")
+                case .temporarilyUnavailable:
+                    print("iCloud temporarily unavailable")
+                @unknown default:
+                    print("Unknown iCloud status")
+                }
+            }
+        }
     }
     
     func syncClipboardItem(_ item: ClipboardItem) {
-        // CloudKit sync disabled to prevent crashes
-        print("CloudKit sync disabled - item not synced: \(item.content.prefix(50))")
-        return
+        guard syncEnabled, let database = database else { return }
+        guard item.type != .image else { return } // Skip images for now (too large)
+        
+        isSyncing = true
+        
+        let record = CKRecord(recordType: recordType)
+        record["id"] = item.id.uuidString as CKRecordValue
+        record["content"] = item.content as CKRecordValue
+        record["type"] = item.type.rawValue as CKRecordValue
+        record["isPinned"] = item.isPinned as CKRecordValue
+        record["timestamp"] = item.timestamp as CKRecordValue
+        
+        database.save(record) { savedRecord, error in
+            DispatchQueue.main.async {
+                self.isSyncing = false
+                if let error = error {
+                    print("Error syncing item: \(error.localizedDescription)")
+                } else {
+                    self.lastSyncDate = Date()
+                    UserDefaults.standard.set(self.lastSyncDate, forKey: "LastSyncDate")
+                }
+            }
+        }
     }
     
     func fetchRemoteItems(completion: @escaping ([ClipboardItem]) -> Void) {
-        // CloudKit fetch disabled to prevent crashes
-        print("CloudKit fetch disabled - returning empty array")
-        completion([])
+        guard syncEnabled, let database = database else {
+            completion([])
+            return
+        }
+        
+        isSyncing = true
+        
+        let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
+        query.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
+        
+        database.perform(query, inZoneWith: nil) { records, error in
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.isSyncing = false
+                
+                if let error = error {
+                    print("Error fetching items: \(error.localizedDescription)")
+                    completion([])
+                    return
+                }
+                
+                guard let records = records else {
+                    completion([])
+                    return
+                }
+                
+                let items = records.compactMap { record -> ClipboardItem? in
+                    guard let idString = record["id"] as? String,
+                          let id = UUID(uuidString: idString),
+                          let content = record["content"] as? String,
+                          let typeString = record["type"] as? String,
+                          let type = ClipboardItemType(rawValue: typeString),
+                          let isPinned = record["isPinned"] as? Bool,
+                          let timestamp = record["timestamp"] as? Date else {
+                        return nil
+                    }
+                    
+                    // Create item based on type
+                    if type == .text {
+                        var item = ClipboardItem(content: content, isPinned: isPinned)
+                        // Override with synced values
+                        return ClipboardItem(id: id, content: content, type: type, isPinned: isPinned, timestamp: timestamp, imageFileName: nil, detectedEntities: item.detectedEntities)
+                    } else if type == .url {
+                        return ClipboardItem(id: id, content: content, type: type, isPinned: isPinned, timestamp: timestamp, imageFileName: nil, detectedEntities: [])
+                    }
+                    
+                    return nil
+                }
+                
+                self.lastSyncDate = Date()
+                UserDefaults.standard.set(self.lastSyncDate, forKey: "LastSyncDate")
+                completion(items)
+            }
+        }
     }
 }
 
@@ -2836,11 +3466,13 @@ class ScheduledClearManager: ObservableObject {
         clipboardManager.saveItems()
         
         // Show notification
-        let notification = NSUserNotification()
-        notification.title = "Clipboard Cleared"
-        notification.informativeText = "Old clipboard items have been automatically cleared"
-        notification.soundName = nil
-        NSUserNotificationCenter.default.deliver(notification)
+        let content = UNMutableNotificationContent()
+        content.title = "Clipboard Cleared"
+        content.body = "Old clipboard items have been automatically cleared"
+        content.sound = nil
+        
+        let request = UNNotificationRequest(identifier: "ClipboardCleared", content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request)
     }
     
     func toggleScheduledClear(_ enabled: Bool) {
@@ -3085,18 +3717,22 @@ class IntegrationManager: ObservableObject {
     }
     
     private func showError(_ message: String) {
-        let notification = NSUserNotification()
-        notification.title = "Integration Error"
-        notification.informativeText = message
-        notification.soundName = NSUserNotificationDefaultSoundName
-        NSUserNotificationCenter.default.deliver(notification)
+        let content = UNMutableNotificationContent()
+        content.title = "Integration Error"
+        content.body = message
+        content.sound = .default
+        
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request)
     }
     
     private func showSuccess(_ message: String) {
-        let notification = NSUserNotification()
-        notification.title = "Success"
-        notification.informativeText = message
-        notification.soundName = nil
-        NSUserNotificationCenter.default.deliver(notification)
+        let content = UNMutableNotificationContent()
+        content.title = "Success"
+        content.body = message
+        content.sound = nil
+        
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request)
     }
 }

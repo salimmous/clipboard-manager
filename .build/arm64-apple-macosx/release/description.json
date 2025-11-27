@@ -19,27 +19,27 @@
   "swiftCommands" : {
     "C.ClipboardManager-arm64-apple-macosx16.0-release.module" : {
       "executable" : "/Library/Developer/CommandLineTools/usr/bin/swiftc",
-      "fileList" : "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/ClipboardManager.build/sources",
-      "importPath" : "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/Modules",
+      "fileList" : "/Users/salim/Downloads/clipboard-manager/.build/arm64-apple-macosx/release/ClipboardManager.build/sources",
+      "importPath" : "/Users/salim/Downloads/clipboard-manager/.build/arm64-apple-macosx/release/Modules",
       "inputs" : [
         {
           "kind" : "file",
-          "name" : "/Users/salim/Downloads/copy clipboard /Sources/main.swift"
+          "name" : "/Users/salim/Downloads/clipboard-manager/Sources/main.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt"
+          "name" : "/Users/salim/Downloads/clipboard-manager/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt"
         },
         {
           "kind" : "file",
-          "name" : "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/ClipboardManager.build/sources"
+          "name" : "/Users/salim/Downloads/clipboard-manager/.build/arm64-apple-macosx/release/ClipboardManager.build/sources"
         }
       ],
       "isLibrary" : false,
       "moduleName" : "ClipboardManager",
-      "moduleOutputPath" : "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/Modules/ClipboardManager.swiftmodule",
+      "moduleOutputPath" : "/Users/salim/Downloads/clipboard-manager/.build/arm64-apple-macosx/release/Modules/ClipboardManager.swiftmodule",
       "objects" : [
-        "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/ClipboardManager.build/main.swift.o"
+        "/Users/salim/Downloads/clipboard-manager/.build/arm64-apple-macosx/release/ClipboardManager.build/main.swift.o"
       ],
       "otherArguments" : [
         "-target",
@@ -48,7 +48,7 @@
         "-j12",
         "-DSWIFT_PACKAGE",
         "-module-cache-path",
-        "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/ModuleCache",
+        "/Users/salim/Downloads/clipboard-manager/.build/arm64-apple-macosx/release/ModuleCache",
         "-parseable-output",
         "-Xfrontend",
         "-entry-point-function-name",
@@ -72,24 +72,24 @@
         "-Xcc",
         "-g",
         "-package-name",
-        "copy_clipboard_"
+        "clipboard_manager"
       ],
-      "outputFileMapPath" : "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/ClipboardManager.build/output-file-map.json",
+      "outputFileMapPath" : "/Users/salim/Downloads/clipboard-manager/.build/arm64-apple-macosx/release/ClipboardManager.build/output-file-map.json",
       "outputs" : [
         {
           "kind" : "file",
-          "name" : "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/ClipboardManager.build/main.swift.o"
+          "name" : "/Users/salim/Downloads/clipboard-manager/.build/arm64-apple-macosx/release/ClipboardManager.build/main.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/Modules/ClipboardManager.swiftmodule"
+          "name" : "/Users/salim/Downloads/clipboard-manager/.build/arm64-apple-macosx/release/Modules/ClipboardManager.swiftmodule"
         }
       ],
       "prepareForIndexing" : false,
       "sources" : [
-        "/Users/salim/Downloads/copy clipboard /Sources/main.swift"
+        "/Users/salim/Downloads/clipboard-manager/Sources/main.swift"
       ],
-      "tempsPath" : "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/ClipboardManager.build",
+      "tempsPath" : "/Users/salim/Downloads/clipboard-manager/.build/arm64-apple-macosx/release/ClipboardManager.build",
       "wholeModuleOptimization" : true
     }
   },
@@ -102,21 +102,21 @@
       "-module-name",
       "ClipboardManager",
       "-package-name",
-      "copy_clipboard_",
+      "clipboard_manager",
       "-whole-module-optimization",
       "-num-threads",
       "12",
       "-c",
-      "/Users/salim/Downloads/copy clipboard /Sources/main.swift",
+      "/Users/salim/Downloads/clipboard-manager/Sources/main.swift",
       "-I",
-      "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/Modules",
+      "/Users/salim/Downloads/clipboard-manager/.build/arm64-apple-macosx/release/Modules",
       "-target",
       "arm64-apple-macosx13.0",
       "-O",
       "-j12",
       "-DSWIFT_PACKAGE",
       "-module-cache-path",
-      "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/ModuleCache",
+      "/Users/salim/Downloads/clipboard-manager/.build/arm64-apple-macosx/release/ModuleCache",
       "-parseable-output",
       "-Xfrontend",
       "-entry-point-function-name",
@@ -140,7 +140,7 @@
       "-Xcc",
       "-g",
       "-package-name",
-      "copy_clipboard_",
+      "clipboard_manager",
       "-driver-use-frontend-path",
       "/Library/Developer/CommandLineTools/usr/bin/swiftc"
     ]
@@ -157,7 +157,7 @@
 
   },
   "writeCommands" : {
-    "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/ClipboardManager.build/sources" : {
+    "/Users/salim/Downloads/clipboard-manager/.build/arm64-apple-macosx/release/ClipboardManager.build/sources" : {
       "alwaysOutOfDate" : false,
       "inputs" : [
         {
@@ -166,12 +166,12 @@
         },
         {
           "kind" : "file",
-          "name" : "/Users/salim/Downloads/copy clipboard /Sources/main.swift"
+          "name" : "/Users/salim/Downloads/clipboard-manager/Sources/main.swift"
         }
       ],
-      "outputFilePath" : "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/ClipboardManager.build/sources"
+      "outputFilePath" : "/Users/salim/Downloads/clipboard-manager/.build/arm64-apple-macosx/release/ClipboardManager.build/sources"
     },
-    "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/ClipboardManager.product/Objects.LinkFileList" : {
+    "/Users/salim/Downloads/clipboard-manager/.build/arm64-apple-macosx/release/ClipboardManager.product/Objects.LinkFileList" : {
       "alwaysOutOfDate" : false,
       "inputs" : [
         {
@@ -180,12 +180,12 @@
         },
         {
           "kind" : "file",
-          "name" : "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/ClipboardManager.build/main.swift.o"
+          "name" : "/Users/salim/Downloads/clipboard-manager/.build/arm64-apple-macosx/release/ClipboardManager.build/main.swift.o"
         }
       ],
-      "outputFilePath" : "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/ClipboardManager.product/Objects.LinkFileList"
+      "outputFilePath" : "/Users/salim/Downloads/clipboard-manager/.build/arm64-apple-macosx/release/ClipboardManager.product/Objects.LinkFileList"
     },
-    "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt" : {
+    "/Users/salim/Downloads/clipboard-manager/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt" : {
       "alwaysOutOfDate" : true,
       "inputs" : [
         {
@@ -197,7 +197,7 @@
           "name" : "/Library/Developer/CommandLineTools/usr/bin/swiftc"
         }
       ],
-      "outputFilePath" : "/Users/salim/Downloads/copy clipboard /.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt"
+      "outputFilePath" : "/Users/salim/Downloads/clipboard-manager/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt"
     }
   }
 }

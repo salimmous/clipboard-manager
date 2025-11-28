@@ -95,7 +95,7 @@ create-dmg: app-bundle
 			--icon "ClipboardManager.app" 175 120 \
 			--hide-extension "ClipboardManager.app" \
 			--app-drop-link 425 120 \
-			"ClipboardManager-1.1.12-Installer.dmg" \
+			"ClipboardManager-1.1.13-Installer.dmg" \
 			"ClipboardManager.app"; \
 	else \
 		echo "create-dmg not found. Installing via Homebrew..."; \
@@ -108,7 +108,7 @@ create-dmg: app-bundle
 			--icon "ClipboardManager.app" 175 120 \
 			--hide-extension "ClipboardManager.app" \
 			--app-drop-link 425 120 \
-			"ClipboardManager-1.1.12-Installer.dmg" \
+			"ClipboardManager-1.1.13-Installer.dmg" \
 			"ClipboardManager.app"; \
 	fi
 
@@ -117,13 +117,13 @@ deploy: clean build app-bundle create-dmg
 	@echo "Distribution package created successfully!"
 	@echo "Files created:"
 	@echo "  - ClipboardManager.app (Universal Binary)"
-	@echo "  - ClipboardManager-1.1.12-Installer.dmg"
+	@echo "  - ClipboardManager-1.1.13-Installer.dmg"
 	@echo ""
 	@echo "For code signing, run:"
 	@echo "  DEVELOPER_ID='Your Developer ID' make codesign"
 	@echo ""
 	@echo "For notarization, run:"
-	@echo "  xcrun notarytool submit ClipboardManager-1.1.12-Installer.dmg --apple-id 'your-apple-id' --password 'your-app-specific-password' --team-id 'your-team-id'"
+	@echo "  xcrun notarytool submit ClipboardManager-1.1.13-Installer.dmg --apple-id 'your-apple-id' --password 'your-app-specific-password' --team-id 'your-team-id'"
 
 # Test the app bundle
 test-app: app-bundle

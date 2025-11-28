@@ -54,8 +54,91 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             AppUpdateManager.shared.startPeriodicCheck()
         }
         
+        // Check for first run and show welcome notifications
+        checkFirstRunAndShowWelcome()
+        
         // Hide dock icon
         NSApp.setActivationPolicy(.accessory)
+    }
+    
+    private func checkFirstRunAndShowWelcome() {
+        let lastVersion = UserDefaults.standard.string(forKey: "LastRunVersion")
+        let currentVersion = "1.1.13"
+        
+        // Check if this is first run or upgrade to 1.1.13
+        if lastVersion != currentVersion {
+            UserDefaults.standard.set(currentVersion, forKey: "LastRunVersion")
+            
+            // Schedule welcome notifications
+            if lastVersion == nil {
+                // Brand new install
+                scheduleWelcomeNotifications()
+            } else {
+                // Upgrade from older version
+                scheduleUpgradeNotifications()
+            }
+        }
+    }
+    
+    private func scheduleWelcomeNotifications() {
+        // Welcome notification - immediate
+        let welcome = UNMutableNotificationContent()
+        welcome.title = "👋 Welcome to ClipboardManager!"
+        welcome.body = "Press ⌘X anytime to access your clipboard history"
+        welcome.sound = .default
+        let welcomeRequest = UNNotificationRequest(identifier: "Welcome", content: welcome, trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false))
+        UNUserNotificationCenter.current().add(welcomeRequest)
+        
+        // Feature 1: Smart Detection - 10 seconds later
+        let smart = UNMutableNotificationContent()
+        smart.title = "🧠 Smart Content Detection"
+        smart.body = "Automatically detects emails, phone numbers, and addresses. Try it now!"
+        smart.sound = nil
+        let smartRequest = UNNotificationRequest(identifier: "SmartDetection", content: smart, trigger: UNTimeIntervalNotificationTrigger(timeInterval: 10, repeats: false))
+        UNUserNotificationCenter.current().add(smartRequest)
+        
+        // Feature 2: iCloud Sync - 20 seconds later
+        let sync = UNMutableNotificationContent()
+        sync.title = "☁️ iCloud Sync Available"
+        sync.body = "Enable in Settings to sync clipboard across all your Macs"
+        sync.sound = nil
+        let syncRequest = UNNotificationRequest(identifier: "iCloudSync", content: sync, trigger: UNTimeIntervalNotificationTrigger(timeInterval: 20, repeats: false))
+        UNUserNotificationCenter.current().add(syncRequest)
+        
+        // Feature 3: Auto Updates - 30 seconds later
+        let updates = UNMutableNotificationContent()
+        updates.title = "🔄 Auto-Updates Enabled"
+        updates.body = "You'll be notified when new versions are available"
+        updates.sound = nil
+        let updatesRequest = UNNotificationRequest(identifier: "AutoUpdates", content: updates, trigger: UNTimeIntervalNotificationTrigger(timeInterval: 30, repeats: false))
+        UNUserNotificationCenter.current().add(updatesRequest)
+    }
+    
+    private func scheduleUpgradeNotifications() {
+        // Upgrade notification - immediate
+        let upgrade = UNMutableNotificationContent()
+        upgrade.title = "🎉 Updated to v1.1.13!"
+        upgrade.body = "New: Smart detection, iCloud sync, auto-updates, and more!"
+        upgrade.sound = .default
+        let upgradeRequest = UNNotificationRequest(identifier: "Upgrade", content: upgrade, trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false))
+        UNUserNotificationCenter.current().add(upgradeRequest)
+        
+        // What's new - 8 seconds later
+        let whatsNew = UNMutableNotificationContent()
+        whatsNew.title = "✨ What's New"
+        whatsNew.body = "Tap to explore: Smart content detection, iCloud sync, and screenshot auto-copy"
+        whatsNew.sound = nil
+        whatsNew.categoryIdentifier = "WHATS_NEW"
+        let whatsNewRequest = UNNotificationRequest(identifier: "WhatsNew", content: whatsNew, trigger: UNTimeIntervalNotificationTrigger(timeInterval: 8, repeats: false))
+        UNUserNotificationCenter.current().add(whatsNewRequest)
+        
+        // Settings reminder - 18 seconds later
+        let settings = UNMutableNotificationContent()
+        settings.title = "⚙️ New Settings Available"
+        settings.body = "Check Settings to enable smart features and iCloud sync"
+        settings.sound = nil
+        let settingsRequest = UNNotificationRequest(identifier: "SettingsReminder", content: settings, trigger: UNTimeIntervalNotificationTrigger(timeInterval: 18, repeats: false))
+        UNUserNotificationCenter.current().add(settingsRequest)
     }
     
     func applicationWillTerminate(_ notification: Notification) {
@@ -397,7 +480,7 @@ class AppUpdateManager: ObservableObject {
     @Published var isChecking = false
     
     private var updateTimer: Timer?
-    private let currentVersion = "1.1.12"
+    private let currentVersion = "1.1.13"
     private let updateCheckURL = "https://api.github.com/repos/salimmous/clipboard-manager/releases/latest"
     
     private init() {}
@@ -2651,7 +2734,7 @@ struct UpdatesSettingsView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Current Version")
                                     .font(.system(size: 14, weight: .medium))
-                                Text("v1.1.12")
+                                Text("v1.1.13")
                                     .font(.system(size: 12))
                                     .foregroundColor(.secondary)
                             }

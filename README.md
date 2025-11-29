@@ -2,34 +2,60 @@
 
 **ClipboardManager** is a powerful, native macOS clipboard management utility that transforms how you work with copied content. Built with Swift and SwiftUI, this lightweight application runs seamlessly in your menu bar, providing instant access to your clipboard history with advanced features and integrations.
 
-## 🆕 **What's New in v1.1.12**
+## 🆕 **What's New in v1.1.13**
 
-### 🔥 **Major Feature Updates**
-- 🖼️ **Image Support**: Copy/paste images with preview thumbnails
-- 🔍 **Advanced Search**: Filter by content type, date, and text
-- 🎨 **Custom Themes**: Beautiful color schemes (Blue, Purple, Green, Orange)
-- ⚡ **Quick Actions**: Share to apps, transform text, and more
-- 🌙 **Enhanced Dark Mode**: Improved dark theme with better contrast
-- 📐 **Compact Mode**: Smaller, minimal interface option
-- 🎭 **Custom Icons**: Multiple icon styles and animations
-- 📏 **Resizable Windows**: User-adjustable window sizes
-- 🔔 **Smart Notifications**: Contextual alerts with auto-dismiss
+🎉 **This is the first production release with all major features fully implemented and tested!**
+
+### ✨ **Complete Feature Set**
+
+#### 🧠 **Smart Content Detection**
+- **Email Detection**: Automatically detects email addresses - click to compose
+- **Phone Detection**: Recognizes phone numbers - click to call via FaceTime
+- **Address Detection**: Finds street addresses - click to open in Apple Maps
+- Works seamlessly with any text you copy!
+
+#### ☁️ **iCloud Sync**
+- **Cross-Device Sync**: Share clipboard across all your Macs
+- **Smart Merging**: No duplicates, intelligent conflict resolution
+- **Background Sync**: Works automatically when enabled
+- **Privacy First**: Uses private CloudKit database
+
+#### 🔄 **Professional Update System**
+- **Automatic Checking**: Checks GitHub for updates every 24 hours (configurable)
+- **Smart Notifications**: Beautiful notifications with action buttons
+- **One-Click Updates**: Tap notification → Download → Install → Restart
+- **Progress Tracking**: See download and installation status
+- **Settings UI**: Manual check button and update status display
+
+#### 📸 **Screenshot Management**
+- **Auto-Copy**: Automatically copies new screenshots to clipboard
+- **Format Support**: PNG, JPG, HEIC, and all common formats
+- **Instant Access**: Screenshots appear in history immediately
+
+#### ⌨️ **Keyboard Shortcuts**
+- **Global Hotkey**: ⌘X to show/hide clipboard manager
+- **Settings Display**: See current shortcuts in app
+- **Ready for Customization**: Framework prepared for future custom hotkeys
+
+### 🛠️ **Technical Excellence**
+
+#### **Stability & Performance**
+- ✅ **Fixed Memory Crashes**: Images now stored on disk, not in UserDefaults
+- ✅ **Modern APIs**: Migrated to UserNotifications framework
+- ✅ **Universal Binary**: Optimized for Intel and Apple Silicon
+- ✅ **Efficient Storage**: Smart file management with automatic cleanup
+
+#### **Code Quality**
+- Full error handling across all features
+- Graceful degradation when services unavailable
+- Comprehensive notification system
+- Clean architecture ready for future features
 
 ### 🔗 **Powerful Integrations**
 - 💬 **Slack Integration**: Send clipboard items directly to Slack channels
 - 🎮 **Discord Integration**: Share content to Discord servers
 - 📧 **Email Integration**: Compose emails with multiple app support (Mail, Outlook, Gmail, Spark)
 - 📝 **Notes Apps Integration**: Save to Notes, Notion, Obsidian, Bear, DEVONthink
-- 🕒 **Scheduled Clear**: Automatically clear old clipboard items
-- ⌨️ **Menu Bar Customization**: Configurable menu items with smart display
-
-### 🎯 **Visual Enhancements**
-- ✨ **Smooth Animations**: Beautiful transitions and loading states
-- 🎨 **Gradient Backgrounds**: Eye-catching theme-based gradients
-- 📊 **Enhanced Empty State**: Animated tips and welcome messages
-- 🎪 **Improved Header**: Item counter, keyboard shortcuts display
-- 🔍 **Visual Search Bar**: Enhanced with focus indicators and shadows
-- 🏷️ **Content Type Icons**: Visual indicators for text, images, and URLs
 
 ## 🎯 **What It Does**
 ClipboardManager automatically captures and stores everything you copy - text, images, and URLs - creating a searchable, filterable history that persists across app sessions. With a simple **⌘+X** keyboard shortcut, you can instantly access your clipboard history from anywhere on your Mac.
@@ -67,6 +93,9 @@ ClipboardManager automatically captures and stores everything you copy - text, i
 - **Appearance Mode** - System, Light, Dark, Blue, Purple, Green, Orange themes
 - **Compact Mode** - Toggle between normal (420px) and compact (380px) interface
 - **Smart Notifications** - Enable contextual clipboard notifications
+- **Smart Detection** - Enable smart content detection (emails, phones, addresses)
+- **iCloud Sync** - Enable cross-device clipboard synchronization
+- **Auto-Copy Screenshots** - Automatically copy new screenshots to clipboard
 - **Max Items** - Set maximum number of items to store (default: 100)
 - **Update Interval** - Adjust clipboard monitoring frequency
 
@@ -79,9 +108,10 @@ ClipboardManager automatically captures and stores everything you copy - text, i
 
 #### **Updates Tab**
 - **Auto-Update** - Enable/disable automatic app updates
-- **Update Check Interval** - Set frequency (1 hour to 1 week)
-- **Auto-Install Updates** - Automatically install new versions
-- **Manual Check** - Check for updates immediately
+- **Update Check Interval** - Set frequency (1-168 hours / 1 hour to 1 week)
+- **Auto-Install Updates** - Automatically install new versions (deprecated - now always one-click)
+- **Manual Check** - Check for updates immediately with progress tracking
+- **Update Status** - View current update status and download progress
 
 #### **About Tab**
 - **App Information** - Version, copyright, and credits
@@ -132,7 +162,7 @@ ClipboardManager automatically captures and stores everything you copy - text, i
 ## 📥 **Download & Installation**
 
 ### **Quick Download (Recommended)**
-📥 **[Download ClipboardManager v1.1.12 Installer](https://github.com/salimmous/clipboard-manager/releases/latest/download/ClipboardManager-1.1.12-Installer.dmg)**
+📥 **[Download ClipboardManager v1.1.13 Installer](https://github.com/salimmous/clipboard-manager/releases/latest/download/ClipboardManager-1.1.13-Installer.dmg)**
 
 1. Click the download link above
 2. Open the downloaded `.dmg` file
@@ -155,7 +185,7 @@ curl -fsSL https://raw.githubusercontent.com/salimmous/clipboard-manager/main/gl
 ### **Alternative Download Links**
 - 📦 [All Releases](https://github.com/salimmous/clipboard-manager/releases)
 - 🔄 [Latest Release](https://github.com/salimmous/clipboard-manager/releases/latest)
-- 💾 [Direct DMG Download](https://github.com/salimmous/clipboard-manager/releases/latest/download/ClipboardManager-1.1.12-Installer.dmg)
+- 💾 [Direct DMG Download](https://github.com/salimmous/clipboard-manager/releases/latest/download/ClipboardManager-1.1.13-Installer.dmg)
 - 📝 [Changelog](https://github.com/salimmous/clipboard-manager/blob/main/CHANGELOG.md)
 
 ---
@@ -264,13 +294,15 @@ mv ClipboardManager.app /Applications/
 - `make deploy` - Build and release to GitHub
 - `make help` - Show available commands
 
-## 🎉 **Coming Soon**
+## 🔮 **Roadmap - Coming Soon**
 
-- 📱 **iOS Companion App** - Sync with iPhone/iPad via iCloud
-- 📊 **Statistics Dashboard** - Usage analytics and insights
-- 📁 **File Path Copying** - Support for file references
-- 🔄 **Cloud Sync Options** - Multiple cloud service support
-- 🎨 **More Themes** - Additional color schemes and customization
+- ⌨️ **Full Keyboard Shortcut Customization** - Customize all hotkeys
+- 📱 **Quick Look Preview** - Press Space to preview items
+- 📚 **Paste Stack** - Sequential paste of multiple items
+- 🎨 **Rich Text Formatting** - Preserve text styles and formatting
+- 🌍 **Multi-language Support** - Localization for multiple languages
+- 📊 **Usage Statistics** - Analytics and insights about your clipboard usage
+- 🔗 **Expanded Integrations** - More app and service integrations
 
 ---
 

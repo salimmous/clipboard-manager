@@ -366,6 +366,18 @@ class AppSettings: ObservableObject {
     @Published var autoInstallUpdates: Bool = false { // auto-install updates
         didSet { if !isLoading { saveSettings() } }
     }
+    @Published var totalItemsCopied: Int = 0 {
+        didSet { if !isLoading { saveSettings() } }
+    }
+    @Published var textItemsCopied: Int = 0 {
+        didSet { if !isLoading { saveSettings() } }
+    }
+    @Published var imageItemsCopied: Int = 0 {
+        didSet { if !isLoading { saveSettings() } }
+    }
+    @Published var urlItemsCopied: Int = 0 {
+        didSet { if !isLoading { saveSettings() } }
+    }
     @Published var compactMode: Bool = false {
         didSet { if !isLoading { saveSettings() } }
     }
@@ -1227,6 +1239,16 @@ class ClipboardManager: ObservableObject {
         items.removeAll { $0.content == trimmedContent && $0.type == .text }
         let newItem = ClipboardItem(content: trimmedContent)
         items.insert(newItem, at: 0)
+            DispatchQueue.main.async {
+                let settings = AppSettings()
+                settings.totalItemsCopied += 1
+                switch newItem.type {
+                case .text: settings.textItemsCopied += 1
+                case .url: settings.urlItemsCopied += 1
+                case .image: settings.imageItemsCopied += 1
+                }
+            }
+
         
         if items.count > maxItems {
             items = Array(items.prefix(maxItems))
@@ -1242,6 +1264,16 @@ class ClipboardManager: ObservableObject {
         
         let newItem = ClipboardItem(imageFileName: fileName)
         items.insert(newItem, at: 0)
+            DispatchQueue.main.async {
+                let settings = AppSettings()
+                settings.totalItemsCopied += 1
+                switch newItem.type {
+                case .text: settings.textItemsCopied += 1
+                case .url: settings.urlItemsCopied += 1
+                case .image: settings.imageItemsCopied += 1
+                }
+            }
+
         
         if items.count > maxItems {
             // Remove old items and their images
@@ -1276,6 +1308,16 @@ class ClipboardManager: ObservableObject {
         items.removeAll { $0.content == trimmedURL && $0.type == .url }
         let newItem = ClipboardItem(url: trimmedURL)
         items.insert(newItem, at: 0)
+            DispatchQueue.main.async {
+                let settings = AppSettings()
+                settings.totalItemsCopied += 1
+                switch newItem.type {
+                case .text: settings.textItemsCopied += 1
+                case .url: settings.urlItemsCopied += 1
+                case .image: settings.imageItemsCopied += 1
+                }
+            }
+
         
         if items.count > maxItems {
             items = Array(items.prefix(maxItems))
@@ -2475,6 +2517,11 @@ struct SettingsView: View {
                     Label("Integrations", systemImage: "link")
                 }
             
+            StatisticsSettingsTab(appSettings: settings)
+                .tabItem {
+                    Label("Statistics", systemImage: "chart.pie.fill")
+                }
+
             AboutSettingsView()
                 .tabItem {
                     Label("About", systemImage: "info.circle")
@@ -2802,6 +2849,147 @@ struct UpdatesSettingsView: View {
         .onDisappear {
             settings.saveSettings()
         }
+    }
+}
+
+
+// MARK: - Statistics Settings Tab
+struct StatisticsSettingsTab: View {
+    @ObservedObject var appSettings: AppSettings
+    @Environment(\.colorScheme) var colorScheme
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                // Header
+                VStack(spacing: 8) {
+                    Image(systemName: "chart.bar.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.blue)
+                        .padding(.bottom, 8)
+
+                    Text("Your Usage Statistics")
+                        .font(.title2)
+                        .fontWeight(.bold)
+
+                    Text("A summary of your clipboard history since installation.")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 20)
+
+                // Total Copies Metric
+                VStack(spacing: 16) {
+                    HStack {
+                        Label("Total Items Copied", systemImage: "doc.on.clipboard")
+                            .font(.headline)
+                        Spacer()
+                    }
+
+                    HStack {
+                        Text("\(appSettings.totalItemsCopied)")
+                            .font(.system(size: 48, weight: .bold, design: .rounded))
+                            .foregroundColor(.primary)
+                        Spacer()
+                    }
+                    .padding()
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                    )
+                }
+                .padding(.horizontal)
+
+                // Detailed Breakdown
+                VStack(spacing: 16) {
+                    HStack {
+                        Label("Content Breakdown", systemImage: "chart.pie")
+                            .font(.headline)
+                        Spacer()
+                    }
+
+                    VStack(spacing: 0) {
+                        StatRowView(title: "Text Snippets", icon: "text.alignleft", color: .blue, count: appSettings.textItemsCopied, total: appSettings.totalItemsCopied)
+                        Divider().padding(.leading, 40)
+                        StatRowView(title: "Images", icon: "photo", color: .purple, count: appSettings.imageItemsCopied, total: appSettings.totalItemsCopied)
+                        Divider().padding(.leading, 40)
+                        StatRowView(title: "Links", icon: "link", color: .green, count: appSettings.urlItemsCopied, total: appSettings.totalItemsCopied)
+                    }
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                    )
+                }
+                .padding(.horizontal)
+
+                Spacer(minLength: 40)
+            }
+            .padding(.bottom, 20)
+        }
+    }
+}
+
+struct StatRowView: View {
+    var title: String
+    var icon: String
+    var color: Color
+    var count: Int
+    var total: Int
+
+    var percentage: Double {
+        guard total > 0 else { return 0 }
+        return Double(count) / Double(total)
+    }
+
+    var body: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.2))
+                    .frame(width: 32, height: 32)
+                Image(systemName: icon)
+                    .foregroundColor(color)
+                    .font(.system(size: 14, weight: .semibold))
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundColor(.primary)
+
+                // Progress bar
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.secondary.opacity(0.2))
+                            .frame(height: 6)
+
+                        Capsule()
+                            .fill(color)
+                            .frame(width: max(0, geometry.size.width * CGFloat(percentage)), height: 6)
+                    }
+                }
+                .frame(height: 6)
+            }
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("\(count)")
+                    .font(.system(.body, design: .rounded))
+                    .fontWeight(.medium)
+                Text("\(Int(percentage * 100))%")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            .frame(width: 50, alignment: .trailing)
+        }
+        .padding()
     }
 }
 

@@ -258,7 +258,7 @@ mv ClipboardManager.app /Applications/
 
 ## 📋 **Requirements**
 
-- **macOS 13.0+** (Ventura or later)
+- **macOS 12.0+** (Monterey or later)
 - **Xcode 15.0+** (for building from source)
 - **Swift 5.9+**
 - **Administrator privileges** (for global installation only)

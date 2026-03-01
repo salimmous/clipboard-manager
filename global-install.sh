@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 APP_NAME="ClipboardManager"
-DMG_URL="https://github.com/yourusername/clipboardmanager/releases/latest/download/ClipboardManager-1.0.4-Installer.dmg"
+DMG_URL="https://github.com/salimmous/clipboard-manager/releases/latest/download/ClipboardManager-1.1.13-Installer.dmg"
 APP_PATH="/Applications/${APP_NAME}.app"
 TEMP_DIR="/tmp/clipboardmanager-install"
 DMG_NAME="${APP_NAME}-Installer.dmg"
@@ -49,13 +49,13 @@ else
     GLOBAL_INSTALL=false
 fi
 
-# Check macOS version (require 13.0 Ventura or later)
+# Check macOS version (require 12.0 Monterey or later)
 print_info "Checking macOS version..."
 macos_version=$(sw_vers -productVersion)
-required_version="13.0"
+required_version="12.0"
 
 if [[ "$(printf '%s\n' "$required_version" "$macos_version" | sort -V | head -n1)" != "$required_version" ]]; then
-    print_error "This application requires macOS 13.0 (Ventura) or later."
+    print_error "This application requires macOS 12.0 (Monterey) or later."
     print_error "Your current version: $macos_version"
     exit 1
 fi

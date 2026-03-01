@@ -28,10 +28,10 @@ MACOS_VERSION=$(sw_vers -productVersion)
 MACOS_MAJOR=$(echo $MACOS_VERSION | cut -d. -f1)
 MACOS_MINOR=$(echo $MACOS_VERSION | cut -d. -f2)
 
-if [ "$MACOS_MAJOR" -lt 13 ]; then
-    echo -e "${RED}❌ Error: ${APP_NAME} requires macOS 13.0 (Ventura) or later.${NC}"
+if [ "$MACOS_MAJOR" -lt 12 ]; then
+    echo -e "${RED}❌ Error: ${APP_NAME} requires macOS 12.0 (Monterey) or later.${NC}"
     echo "Current macOS version: $MACOS_VERSION"
-    echo "Please upgrade to macOS 13.0 or later."
+    echo "Please upgrade to macOS 12.0 or later."
     exit 1
 fi
 

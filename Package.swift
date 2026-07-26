@@ -22,10 +22,7 @@ let package = Package(
         .executableTarget(
             name: "ClipboardManager",
             dependencies: [],
-            path: "Sources",
-            resources: [
-                .copy("../svgviewer-output.svg")
-            ]
+            path: "Sources"
         )
     ]
 )

@@ -5,30 +5,11 @@
 # Build configurations
 SWIFT_BUILD_FLAGS = -c release
 
-# Build the application (universal binary)
-build: build-intel build-arm64 create-universal
-	@echo "✅ Universal binary created successfully!"
-
-# Build for Intel Macs
-build-intel:
-	@echo "Building Clipboard Manager (Intel)..."
-	swift build $(SWIFT_BUILD_FLAGS) -Xswiftc -target -Xswiftc x86_64-apple-macos13.0
-	@mkdir -p .build/universal
-	@cp .build/release/ClipboardManager .build/universal/ClipboardManager-intel
-
-# Build for Apple Silicon
-build-arm64:
-	@echo "Building Clipboard Manager (Apple Silicon)..."
-	swift build $(SWIFT_BUILD_FLAGS) -Xswiftc -target -Xswiftc arm64-apple-macos13.0
-	@mkdir -p .build/universal
-	@cp .build/release/ClipboardManager .build/universal/ClipboardManager-arm64
-
-# Create universal binary
-create-universal:
-	@echo "Creating universal binary..."
-	@lipo -create .build/universal/ClipboardManager-intel .build/universal/ClipboardManager-arm64 -output .build/universal/ClipboardManager
-	@cp .build/universal/ClipboardManager .build/release/ClipboardManager
-	@echo "✅ Universal binary created: Intel + Apple Silicon"
+# Build the application
+build:
+	@echo "Building Clipboard Manager..."
+	swift build $(SWIFT_BUILD_FLAGS)
+	@echo "✅ Build complete!"
 
 # Run the application
 run:

@@ -6,7 +6,7 @@
 set -e
 
 APP_NAME="ClipboardManager"
-VERSION="1.1.11"
+VERSION="1.3.0"
 DMG_NAME="${APP_NAME}-${VERSION}-Installer"
 SOURCE_APP="ClipboardManager.app"
 TEMP_DMG="temp_${DMG_NAME}.dmg"

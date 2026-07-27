@@ -2,6 +2,10 @@
 
 **ClipboardManager** is a powerful, lightweight, native macOS clipboard management utility that transforms how you work with copied content. Built with Swift and SwiftUI, this application runs seamlessly in your menu bar, providing instant access to your clipboard history with advanced security, optical character recognition (OCR), and integrations.
 
+<p align="center">
+  <img src="assets/preview.png" width="450" alt="Clipboard Manager Interface">
+</p>
+
 ---
 
 ## 🚀 **Installation Options**

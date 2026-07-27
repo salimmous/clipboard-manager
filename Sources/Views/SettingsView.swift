@@ -266,9 +266,20 @@ struct AboutSettingsView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
             
+            VStack(spacing: 6) {
+                Text("Created & Maintained by Salim Moustanir")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.primary)
+                
+                Link("Official GitHub: salimmous/clipboard-manager", destination: URL(string: "https://github.com/salimmous/clipboard-manager")!)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.blue)
+            }
+            .padding(.vertical, 4)
+            
             Spacer()
             
-            Text("© 2026 All rights reserved.")
+            Text("© 2026 Salim Moustanir. All rights reserved.")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }

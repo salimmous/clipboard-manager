@@ -48,8 +48,8 @@ class AppUpdateManager: ObservableObject {
                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                       let tagName = json["tag_name"] as? String,
                       let assets = json["assets"] as? [[String: Any]],
-                      let firstAsset = assets.first,
-                      let downloadURL = firstAsset["browser_download_url"] as? String else {
+                      let dmgAsset = assets.first(where: { ($0["name"] as? String)?.hasSuffix(".dmg") == true }) ?? assets.first,
+                      let downloadURL = dmgAsset["browser_download_url"] as? String else {
                     return
                 }
                 

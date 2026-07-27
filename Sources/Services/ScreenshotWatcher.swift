@@ -56,12 +56,22 @@ class ScreenshotWatcher: ObservableObject {
         lastKnownFiles = currentFileSet
         
         for file in newFiles {
-            if (file.hasPrefix("Screenshot") || file.hasPrefix("Capture")) && 
-               (file.hasSuffix(".png") || file.hasSuffix(".jpg") || file.hasSuffix(".jpeg") || file.hasSuffix(".heic")) {
-                
+            let lower = file.lowercased()
+            let isImage = lower.hasSuffix(".png") || lower.hasSuffix(".jpg") || lower.hasSuffix(".jpeg") || lower.hasSuffix(".heic") || lower.hasSuffix(".webp")
+            let isScreenshot = lower.contains("screenshot") || 
+                               lower.contains("capture") || 
+                               lower.contains("لقطة") || 
+                               lower.contains("écran") || 
+                               lower.contains("ecran") || 
+                               lower.contains("pantalla") || 
+                               lower.contains("bildschirm") || 
+                               file.hasPrefix("Shot") || 
+                               file.hasPrefix("CleanShot")
+            
+            if isImage && isScreenshot {
                 let fileURL = directory.appendingPathComponent(file)
                 
-                DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) {
+                DispatchQueue.global().asyncAfter(deadline: .now() + 0.4) {
                     if let data = try? Data(contentsOf: fileURL) {
                         DispatchQueue.main.async {
                             ClipboardManager.shared.addScreenshotItem(data)

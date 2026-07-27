@@ -92,11 +92,9 @@ class ClipboardManager: ObservableObject {
                 }
             }
             
-            // Check for images first
-            if pasteboard.canReadObject(forClasses: [NSImage.self], options: nil),
-               let image = NSImage(pasteboard: pasteboard),
-               let tiffData = image.tiffRepresentation {
-                addImageItem(imageData: tiffData)
+            // Check for images (PNG, TIFF, direct NSImage, or copied image files)
+            if let imageData = extractImageData(from: pasteboard) {
+                addImageItem(imageData: imageData)
             }
             // Check for text content
             else if let string = pasteboard.string(forType: .string), !string.isEmpty {
@@ -107,6 +105,37 @@ class ClipboardManager: ObservableObject {
                 }
             }
         }
+    }
+    
+    private func extractImageData(from pasteboard: NSPasteboard) -> Data? {
+        // 1. Direct PNG or TIFF pasteboard data
+        if let pngData = pasteboard.data(forType: .png) {
+            return pngData
+        }
+        if let tiffData = pasteboard.data(forType: .tiff) {
+            return tiffData
+        }
+        
+        // 2. NSImage instance from pasteboard
+        if pasteboard.canReadObject(forClasses: [NSImage.self], options: nil),
+           let image = NSImage(pasteboard: pasteboard),
+           let tiffData = image.tiffRepresentation {
+            return tiffData
+        }
+        
+        // 3. Copied Image file URLs (from Finder or Screenshots folder)
+        if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: nil) as? [URL] {
+            for url in urls {
+                let ext = url.pathExtension.lowercased()
+                if ["png", "jpg", "jpeg", "heic", "webp", "tiff", "bmp"].contains(ext) {
+                    if let data = try? Data(contentsOf: url) {
+                        return data
+                    }
+                }
+            }
+        }
+        
+        return nil
     }
     
     private func addTextItem(content: String) {
@@ -126,7 +155,7 @@ class ClipboardManager: ObservableObject {
     private func addImageItem(imageData: Data) {
         guard let fileName = ImageStorageManager.shared.saveImage(imageData) else { return }
         
-        var newItem = ClipboardItem(imageFileName: fileName)
+        let newItem = ClipboardItem(imageFileName: fileName)
         items.insert(newItem, at: 0)
         
         let itemId = newItem.id

@@ -1,4 +1,4 @@
-# Clipboard Manager for macOS (v1.3.1)
+# Clipboard Manager for macOS (v1.3.2)
 
 **ClipboardManager** is a powerful, lightweight, native macOS clipboard management utility that transforms how you work with copied content. Built with Swift and SwiftUI, this application runs seamlessly in your menu bar, providing instant access to your clipboard history with advanced security, optical character recognition (OCR), and integrations.
 
@@ -19,8 +19,8 @@ curl -fsSL https://raw.githubusercontent.com/salimmous/clipboard-manager/main/in
 ```
 
 ### Option 2: 📦 Download DMG Installer
-1. 📥 **[Download ClipboardManager v1.3.1 DMG Installer](https://github.com/salimmous/clipboard-manager/releases/latest/download/ClipboardManager-1.3.1-Installer.dmg)**
-2. Open `ClipboardManager-1.3.1-Installer.dmg`
+1. 📥 **[Download ClipboardManager v1.3.2 DMG Installer](https://github.com/salimmous/clipboard-manager/releases/latest/download/ClipboardManager-1.3.2-Installer.dmg)**
+2. Open `ClipboardManager-1.3.2-Installer.dmg`
 3. Drag **ClipboardManager** into your **Applications** folder
 
 ### Option 3: 🌐 Global System-Wide Installation (All Users)

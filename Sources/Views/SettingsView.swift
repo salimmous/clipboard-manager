@@ -259,7 +259,7 @@ struct AboutSettingsView: View {
                 .font(.title)
                 .bold()
             
-            Text("Version 1.3.1")
+            Text("Version 1.3.2")
                 .foregroundColor(.secondary)
             
             Text("Native macOS clipboard manager with Vision OCR, Security & Privacy filters, and Smart Integrations.")

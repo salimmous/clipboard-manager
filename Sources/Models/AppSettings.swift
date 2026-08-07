@@ -29,7 +29,7 @@ class AppSettings: ObservableObject {
     @Published var showNotifications: Bool = true {
         didSet { if !isLoading { saveSettings() } }
     }
-    @Published var watchScreenshots: Bool = false {
+    @Published var watchScreenshots: Bool = true {
         didSet { if !isLoading { saveSettings() } }
     }
     @Published var globalHotkey: String = "⌘X" {

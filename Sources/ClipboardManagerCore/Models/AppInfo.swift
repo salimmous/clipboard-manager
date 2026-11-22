@@ -1,7 +1,7 @@
 import Foundation
 
 public enum AppInfo {
-    public static let fallbackVersion = "1.4.0"
+    public static let fallbackVersion = "1.4.1"
     public static let bundleIdentifier = "com.clipboardmanager.app"
     public static let repoOwnerAndName = "salimmous/clipboard-manager"
 

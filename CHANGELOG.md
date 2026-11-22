@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [1.4.1] - 2026-11-22
+### Fixed
+- Fixed ScrollView jumping back while scrolling (removed `.onHover` → `proxy.scrollTo(..., anchor: .center)` feedback loop; `scrollTo` now triggers only on `↑`/`↓` keyboard navigation with minimal scroll)
+- Isolated row hover state inside `ClipboardPopupItemView` and cached `RelativeDateTimeFormatter` for smooth scrolling
+- Disabled `isMovableByWindowBackground` on popup window (header `DragAreaView` handles dragging without interfering with list scrolling)
+
 ## [1.4.0] - 2026-11-22
 ### Added
 - Configurable global hotkey (default `⌘⇧V` — no longer hijacks macOS `⌘X` Cut) with live re-registration in Settings

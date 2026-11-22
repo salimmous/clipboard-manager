@@ -564,7 +564,7 @@ public final class ClipboardManager: ObservableObject {
             customWindow.isOpaque = false
             customWindow.hasShadow = true
             customWindow.level = .floating
-            customWindow.isMovableByWindowBackground = true
+            customWindow.isMovableByWindowBackground = false
             customWindow.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
             customWindow.acceptsMouseMovedEvents = true
             customWindow.isReleasedWhenClosed = false

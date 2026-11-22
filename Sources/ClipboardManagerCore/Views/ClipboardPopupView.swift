@@ -66,6 +66,7 @@ struct FilterChip: View {
 
 final class PopupViewState: ObservableObject {
     @Published var selectedIndex: Int? = 0
+    @Published var keyboardScrollToken: Int = 0
     @Published var searchText: String = ""
     @Published var selectedContentType: ClipboardItemType? = nil
     @Published var showingFilters: Bool = false
@@ -414,11 +415,6 @@ public struct ClipboardPopupView: View {
                             viewState.selectedIndex = index
                             activateItem(item, plainText: NSEvent.modifierFlags.contains(.shift))
                         }
-                        .onHover { hovering in
-                            if hovering {
-                                viewState.selectedIndex = index
-                            }
-                        }
                     }
 
                     if filteredItems.isEmpty {
@@ -437,11 +433,9 @@ public struct ClipboardPopupView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 14)
             }
-            .onChange(of: viewState.selectedIndex) { newIndex in
-                guard let idx = newIndex, idx >= 0, idx < filteredItems.count else { return }
-                withAnimation(.easeOut(duration: 0.12)) {
-                    proxy.scrollTo(filteredItems[idx].id, anchor: .center)
-                }
+            .onChange(of: viewState.keyboardScrollToken) { _ in
+                guard let idx = viewState.selectedIndex, idx >= 0, idx < filteredItems.count else { return }
+                proxy.scrollTo(filteredItems[idx].id)
             }
         }
     }
@@ -533,12 +527,14 @@ public struct ClipboardPopupView: View {
             guard !items.isEmpty else { return nil }
             let current = viewState.selectedIndex ?? -1
             viewState.selectedIndex = min(current + 1, items.count - 1)
+            viewState.keyboardScrollToken &+= 1
             return nil
 
         case 126: // Up arrow
             guard !items.isEmpty else { return nil }
             let current = viewState.selectedIndex ?? 0
             viewState.selectedIndex = max(current - 1, 0)
+            viewState.keyboardScrollToken &+= 1
             return nil
 
         case 36, 76: // Return / Numpad Enter
@@ -579,11 +575,18 @@ public struct ClipboardPopupView: View {
 }
 
 struct ClipboardPopupItemView: View {
+    private static let relativeDateFormatter: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter
+    }()
+
     let item: ClipboardItem
     let index: Int
     let isSelected: Bool
     let compact: Bool
     @EnvironmentObject var clipboardManager: ClipboardManager
+    @State private var isHovered = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -672,14 +675,22 @@ struct ClipboardPopupItemView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, compact ? 7 : 10)
+        .frame(minHeight: compact ? 46 : 58)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(isSelected ? Color.accentColor.opacity(0.16) : Color(NSColor.controlBackgroundColor))
+                .fill(
+                    isSelected
+                        ? Color.accentColor.opacity(0.16)
+                        : (isHovered ? Color.primary.opacity(0.06) : Color(NSColor.controlBackgroundColor))
+                )
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 1.5)
         )
+        .onHover { hovering in
+            isHovered = hovering
+        }
     }
 
     @ViewBuilder
@@ -792,8 +803,6 @@ struct ClipboardPopupItemView: View {
     }
 
     private var timeAgo: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: item.timestamp, relativeTo: Date())
+        Self.relativeDateFormatter.localizedString(for: item.timestamp, relativeTo: Date())
     }
 }

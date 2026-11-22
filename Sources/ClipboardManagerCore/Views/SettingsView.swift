@@ -189,15 +189,12 @@ struct GeneralSettingsView: View {
                 // Appearance & Notifications
                 settingsCard(title: "Appearance & Capture", icon: "paintbrush.fill", color: .orange) {
                     HStack {
-                        Text("Theme")
-                            .font(.system(size: 13.5, weight: .medium))
-                        Spacer()
-                        Picker("", selection: $settings.appearanceMode) {
+                        Picker("Theme", selection: $settings.appearanceMode) {
                             ForEach(AppearanceMode.allCases, id: \.self) { mode in
                                 Text(mode.displayName).tag(mode)
                             }
                         }
-                        .frame(width: 180)
+                        .pickerStyle(.segmented)
                     }
 
                     Divider()
@@ -544,30 +541,30 @@ private func settingsCard<Content: View>(
     @ViewBuilder content: () -> Content
 ) -> some View {
     VStack(alignment: .leading, spacing: 12) {
-        HStack(spacing: 8) {
+        HStack {
             Image(systemName: icon)
                 .foregroundColor(color)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 16, weight: .medium))
             Text(title)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: 18, weight: .semibold))
             Spacer()
         }
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             content()
         }
     }
-    .padding(16)
+    .padding(18)
     .background(Color(NSColor.controlBackgroundColor))
     .clipShape(RoundedRectangle(cornerRadius: 12))
 }
 
 private func toggleRow(title: String, subtitle: String, isOn: Binding<Bool>) -> some View {
     HStack {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.system(size: 13.5, weight: .medium))
+                .font(.system(size: 14, weight: .medium))
             Text(subtitle)
-                .font(.caption)
+                .font(.system(size: 12))
                 .foregroundColor(.secondary)
         }
         Spacer()

@@ -189,10 +189,10 @@ public struct QuickLookPreviewView: View {
             .padding(12)
             .background(Color(NSColor.windowBackgroundColor))
         }
-        .frame(maxWidth: 420, maxHeight: 460)
+        .frame(maxWidth: 392, maxHeight: 422)
         .background(Color(NSColor.windowBackgroundColor))
         .cornerRadius(12)
-        .shadow(radius: 12)
+        .shadow(radius: 10)
         .onAppear {
             loadImageIfNeeded()
         }

@@ -83,7 +83,7 @@ public enum AppearanceMode: String, CaseIterable, Codable {
     public var backgroundGradient: LinearGradient {
         switch self {
         case .system, .light, .dark:
-            return LinearGradient(colors: [Color(NSColor.windowBackgroundColor)], startPoint: .top, endPoint: .bottom)
+            return LinearGradient(colors: [Color(NSColor.controlBackgroundColor)], startPoint: .top, endPoint: .bottom)
         case .blue:
             return LinearGradient(colors: [Color.blue.opacity(0.1), Color.cyan.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .purple:

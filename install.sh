@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 
 # App information
 APP_NAME="Clipboard Manager"
-APP_VERSION="1.4.1"
+APP_VERSION="1.4.2"
 DOWNLOAD_URL="https://github.com/salimmous/clipboard-manager/releases/latest/download/ClipboardManager-${APP_VERSION}-Installer.dmg"
 TEMP_DIR="/tmp/clipboard-manager-install"
 DMG_NAME="ClipboardManager-${APP_VERSION}-Installer.dmg"

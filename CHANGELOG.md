@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [1.4.2] - 2026-11-22
+### Changed
+- Restored original v1.3.2 popup & Settings visual styling (window size `420×450`, original `controlBackgroundColor` card fill, clean row layout without extra badges, `22pt` header title, blue filter chips, `.fit` thumbnails, segmented theme picker) while keeping smooth scrolling, privacy protection, and all v1.4 features
+
 ## [1.4.1] - 2026-11-22
 ### Fixed
 - Fixed ScrollView jumping back while scrolling (removed `.onHover` → `proxy.scrollTo(..., anchor: .center)` feedback loop; `scrollTo` now triggers only on `↑`/`↓` keyboard navigation with minimal scroll)

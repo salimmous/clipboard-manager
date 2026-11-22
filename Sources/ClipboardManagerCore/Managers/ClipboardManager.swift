@@ -544,8 +544,8 @@ public final class ClipboardManager: ObservableObject {
         }
 
         let windowSize = settings.compactMode
-            ? CGSize(width: 400, height: 430)
-            : CGSize(width: 460, height: 520)
+            ? CGSize(width: 380, height: 400)
+            : CGSize(width: 420, height: 450)
 
         if clipboardWindow == nil {
             let contentView = ClipboardPopupView()

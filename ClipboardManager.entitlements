@@ -33,7 +33,6 @@
 		<string>com.jetbrains.intellij</string>
 		<string>com.apple.Safari</string>
 		<string>com.google.Chrome</string>
-		<string>com.microsoft.VSCode</string>
 		<string>com.apple.Terminal</string>
 		<string>com.apple.iTerm2</string>
 	</array>

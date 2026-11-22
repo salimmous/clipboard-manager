@@ -102,24 +102,23 @@ echo -e "${YELLOW}📝 Updating Info.plist...${NC}"
 plutil -replace CFBundleShortVersionString -string "$NEW_VERSION" Info.plist
 plutil -replace CFBundleVersion -string "$NEW_VERSION" Info.plist
 
-# Update main.swift - currentVersion
-echo -e "${YELLOW}📝 Updating main.swift...${NC}"
-sed -i '' "s/let currentVersion = \".*\"/let currentVersion = \"$NEW_VERSION\"/g" Sources/main.swift
+# Update AppInfo.swift fallback version
+echo -e "${YELLOW}📝 Updating AppInfo.swift...${NC}"
+sed -i '' "s/fallbackVersion = \".*\"/fallbackVersion = \"$NEW_VERSION\"/g" Sources/ClipboardManagerCore/Models/AppInfo.swift
 
-# Update main.swift - footer version
-sed -i '' "s/Text(\"v.*\")/Text(\"v$NEW_VERSION\")/g" Sources/main.swift
+# Update install scripts
+if [ -f "install.sh" ]; then
+    sed -i '' "s/APP_VERSION=\".*\"/APP_VERSION=\"$NEW_VERSION\"/g" install.sh
+fi
+if [ -f "global-install.sh" ]; then
+    sed -i '' "s/ClipboardManager-[0-9]\+\.[0-9]\+\.[0-9]\+-Installer\.dmg/ClipboardManager-$NEW_VERSION-Installer.dmg/g" global-install.sh
+fi
 
-# Update main.swift - About view version
-sed -i '' "s/Version [0-9]\+\.[0-9]\+\.[0-9]\+/Version $NEW_VERSION/g" Sources/main.swift
-
-# Update create_dmg.sh
-echo -e "${YELLOW}📝 Updating create_dmg.sh...${NC}"
-sed -i '' "s/VERSION=\".*\"/VERSION=\"$NEW_VERSION\"/g" create_dmg.sh
-
-# Update README.md if it contains version info
-if [ -f "README.md" ] && grep -q "Version" README.md; then
+# Update README.md version references
+if [ -f "README.md" ]; then
     echo -e "${YELLOW}📝 Updating README.md...${NC}"
-    sed -i '' "s/Version [0-9]\+\.[0-9]\+\.[0-9]\+/Version $NEW_VERSION/g" README.md
+    sed -i '' "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v$NEW_VERSION/g" README.md
+    sed -i '' "s/ClipboardManager-[0-9]\+\.[0-9]\+\.[0-9]\+-Installer\.dmg/ClipboardManager-$NEW_VERSION-Installer.dmg/g" README.md
 fi
 
 # Create changelog entry

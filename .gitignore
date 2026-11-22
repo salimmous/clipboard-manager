@@ -7,8 +7,9 @@
 # macOS
 .DS_Store
 
-# App bundles (for development)
+# App bundles & installers
 *.app/
+*.dmg
 
 # Temporary files
 *.tmp

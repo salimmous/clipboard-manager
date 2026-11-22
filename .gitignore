@@ -3,13 +3,15 @@
 *.xcodeproj
 *.xcworkspace
 .swiftpm/
-
-# macOS
-.DS_Store
+DerivedData/
 
 # App bundles & installers
 *.app/
 *.dmg
+
+# macOS
+.DS_Store
+**/.DS_Store
 
 # Temporary files
 *.tmp
@@ -17,14 +19,13 @@
 
 # User-specific files
 xcuserdata/
+*.xcuserstate
 
 # Package manager
 Packages/
 .package.resolved
 
-# IDE files
+# IDE & deploy tooling
 .vscode/
 .idea/
-
-# Vercel
 .vercel/

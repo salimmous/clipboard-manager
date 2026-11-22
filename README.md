@@ -16,8 +16,8 @@ A lightweight, fast, native macOS menu bar clipboard manager built with Swift an
 ## Installation
 
 ### Option 1: Download DMG Installer (Recommended)
-1. **[Download ClipboardManager v1.4.3 DMG Installer](https://github.com/salimmous/clipboard-manager/releases/latest/download/ClipboardManager-1.4.3-Installer.dmg)**
-2. Open `ClipboardManager-1.4.3-Installer.dmg`
+1. **[Download ClipboardManager v1.4.4 DMG Installer](https://github.com/salimmous/clipboard-manager/releases/latest/download/ClipboardManager-1.4.4-Installer.dmg)**
+2. Open `ClipboardManager-1.4.4-Installer.dmg`
 3. Drag **ClipboardManager** into your **Applications** folder
 
 ### Option 2: One-Line Terminal Install

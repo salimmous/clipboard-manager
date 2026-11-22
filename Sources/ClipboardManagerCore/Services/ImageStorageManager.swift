@@ -144,10 +144,56 @@ public final class ImageStorageManager {
         }
     }
 
+    public static let pngSignature: [UInt8] = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+
+    public static func isValidPNG(_ data: Data) -> Bool {
+        guard data.count >= pngSignature.count else { return false }
+        return data.prefix(pngSignature.count).elementsEqual(pngSignature)
+    }
+
+    /// Converts any supported image Data (TIFF, JPEG, HEIC, WebP, PNG) into genuine PNG & TIFF
+    /// representations so pasteboard consumers never receive non-PNG bytes labeled as `public.png`.
+    public static func pasteboardRepresentations(for data: Data) -> (png: Data?, tiff: Data?) {
+        var pngData: Data?
+        var tiffData: Data?
+
+        if isValidPNG(data) {
+            pngData = data
+        } else if let rep = NSBitmapImageRep(data: data),
+                  let converted = rep.representation(using: .png, properties: [:]) {
+            pngData = converted
+        } else if let image = NSImage(data: data),
+                  let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            let rep = NSBitmapImageRep(cgImage: cgImage)
+            pngData = rep.representation(using: .png, properties: [:])
+        }
+
+        if let image = NSImage(data: pngData ?? data) {
+            tiffData = image.tiffRepresentation
+        }
+
+        return (pngData, tiffData)
+    }
+
+    @discardableResult
+    public static func writeImageData(_ data: Data, to pasteboard: NSPasteboard) -> Bool {
+        let reps = pasteboardRepresentations(for: data)
+        guard reps.png != nil || reps.tiff != nil else { return false }
+
+        let pbItem = NSPasteboardItem()
+        if let png = reps.png {
+            pbItem.setData(png, forType: .png)
+        }
+        if let tiff = reps.tiff {
+            pbItem.setData(tiff, forType: .tiff)
+        }
+
+        pasteboard.clearContents()
+        return pasteboard.writeObjects([pbItem])
+    }
+
     private func normalizeImageData(_ data: Data) -> (data: Data, ext: String, width: Int?, height: Int?) {
-        // Check if already PNG magic bytes (89 50 4E 47)
-        let isPNG = data.count >= 4 && data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47
-        // Check if already JPEG magic bytes (FF D8 FF)
+        let isPNG = Self.isValidPNG(data)
         let isJPEG = data.count >= 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF
 
         if let rep = NSBitmapImageRep(data: data) {

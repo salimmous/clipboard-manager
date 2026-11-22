@@ -191,6 +191,35 @@ final class ClipboardManagerTests: XCTestCase {
         XCTAssertNil(storage.loadImageData(fileName: saved.fileName))
     }
 
+    func testPasteboardWriteConvertsTIFFAndJPEGToGenuinePNG() {
+        let tiffData = makeTestImageData(width: 32, height: 24)
+        let rep = NSBitmapImageRep(data: tiffData)!
+        let jpegData = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.8])!
+        let pngData = rep.representation(using: .png, properties: [:])!
+
+        XCTAssertFalse(ImageStorageManager.isValidPNG(tiffData))
+        XCTAssertFalse(ImageStorageManager.isValidPNG(jpegData))
+        XCTAssertTrue(ImageStorageManager.isValidPNG(pngData))
+
+        let testPB = NSPasteboard(name: NSPasteboard.Name("com.clipboardmanager.tests.\(UUID().uuidString)"))
+        defer { testPB.releaseGlobally() }
+
+        for sample in [tiffData, jpegData, pngData] {
+            XCTAssertTrue(ImageStorageManager.writeImageData(sample, to: testPB))
+
+            guard let pbPNG = testPB.data(forType: .png) else {
+                return XCTFail("Expected genuine PNG representation on pasteboard")
+            }
+            XCTAssertTrue(ImageStorageManager.isValidPNG(pbPNG), "Pasteboard .png data must have valid PNG magic header")
+            XCTAssertNotNil(NSImage(data: pbPNG), "Pasteboard .png data must decode cleanly")
+
+            guard let pbTIFF = testPB.data(forType: .tiff) else {
+                return XCTFail("Expected TIFF representation on pasteboard")
+            }
+            XCTAssertNotNil(NSImage(data: pbTIFF), "Pasteboard .tiff data must decode cleanly")
+        }
+    }
+
     // MARK: - ClipboardManager Core & Security Tests
 
     func testConcealedAndPasswordManagerAndPauseFiltering() {

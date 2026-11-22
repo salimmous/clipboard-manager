@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [1.4.4] - 2026-11-22
+### Fixed
+- Fixed `"Failed to process image"` when pasting images into browsers, chat apps, and editors: `copyToClipboard` and `addScreenshotItem` now convert legacy `.tiff`, `.jpg`, `.heic`, and `.webp` data to genuine valid PNG bytes before writing `.png` + `.tiff` onto a single `NSPasteboardItem`
+
 ## [1.4.3] - 2026-11-22
 ### Changed
 - Redesigned Settings window with a native macOS translucent sidebar (`NSVisualEffectView .sidebar`), colored SF Symbol badges, full-size transparent titlebar, visual 7-theme swatch grid (replaces cramped segmented control), bounded scrollable Ignored Apps list, live webhook status dots, Accessibility status pill, and unified section cards

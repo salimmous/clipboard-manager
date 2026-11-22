@@ -284,11 +284,7 @@ public final class ClipboardManager: ObservableObject {
         addImageItem(imageData: imageData, sourceAppBundleID: "com.apple.screencapture", sourceAppName: "Screenshot")
 
         let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setData(imageData, forType: .png)
-        if let nsImage = NSImage(data: imageData), let tiff = nsImage.tiffRepresentation {
-            pasteboard.setData(tiff, forType: .tiff)
-        }
+        ImageStorageManager.writeImageData(imageData, to: pasteboard)
         lastChangeCount = pasteboard.changeCount
     }
 
@@ -442,17 +438,15 @@ public final class ClipboardManager: ObservableObject {
 
     public func copyToClipboard(_ item: ClipboardItem) {
         let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
 
         switch item.type {
         case .text, .url:
+            pasteboard.clearContents()
             pasteboard.setString(item.content, forType: .string)
         case .image:
-            if let fileName = item.imageFileName, let imageData = imageStorage.loadImageData(fileName: fileName) {
-                pasteboard.setData(imageData, forType: .png)
-                if let image = NSImage(data: imageData), let tiff = image.tiffRepresentation {
-                    pasteboard.setData(tiff, forType: .tiff)
-                }
+            if let fileName = item.imageFileName,
+               let imageData = imageStorage.loadImageData(fileName: fileName) {
+                ImageStorageManager.writeImageData(imageData, to: pasteboard)
             }
         }
 
